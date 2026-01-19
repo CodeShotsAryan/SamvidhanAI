@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import search, summarize, compare
+from app.routers import search, summarize, compare, auth
+from app.database import engine, Base
+
+# Create Tables (Auto-Migration)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SamvidhanAI Server",
@@ -29,3 +33,4 @@ def health_check():
 app.include_router(search.router)
 app.include_router(summarize.router)
 app.include_router(compare.router)
+app.include_router(auth.router)
