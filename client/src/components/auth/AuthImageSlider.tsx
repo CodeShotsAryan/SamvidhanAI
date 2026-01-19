@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 
 const SLIDER_IMAGES = [
-    "/asdf.png",
-    "/imggg.png",
+    "/hero1.png",
+    "/hero2.png"
 ];
 
 const AuthImageSlider = () => {
@@ -13,20 +13,20 @@ const AuthImageSlider = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % SLIDER_IMAGES.length);
-        }, 2000);
+        }, 3000);
 
         return () => clearInterval(interval);
     }, []);
 
     return (
-        <div className="h-screen md:w-[50%] bg-[#e0f3ff] relative overflow-hidden flex items-center justify-center p-10">
+        <div className="h-screen w-full bg-[#e0f3ff] relative overflow-hidden flex items-center justify-center p-10">
             <div className="relative w-full h-full max-w-lg max-h-[600px]">
                 {SLIDER_IMAGES.map((src, index) => (
                     <div
                         key={index}
                         className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ease-in-out transform ${index === currentIndex
-                                ? 'opacity-100  scale-100'
-                                : 'opacity-0  scale-95'
+                            ? 'opacity-100  scale-100'
+                            : 'opacity-0  scale-95'
                             }`}
                     >
                         <Image
@@ -34,7 +34,7 @@ const AuthImageSlider = () => {
                             alt={`Slide ${index + 1}`}
                             width={800}
                             height={800}
-                            className="object-contain drop-shadow-2xl"
+                            className="object-contain rounded-3xl"
                             priority={index === 0}
                         />
                     </div>

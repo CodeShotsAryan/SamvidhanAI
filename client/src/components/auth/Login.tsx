@@ -1,69 +1,123 @@
 'use client';
 
 import React, { useState } from "react";
-import api from "../../lib/api";
+import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, User } from "lucide-react";
+import { Loader2, Lock, Mail, Scale } from "lucide-react";
 import Input from "./Input";
 import AuthImageSlider from "./AuthImageSlider";
+import Image from "next/image";
+import { API_ENDPOINTS } from "@/src/lib/config";
 
 const Login = () => {
-  const [id, setId] = useState(""); // Email or Username
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const response = await api.post("/auth/login", {
-        username: id,
+      const response = await axios.post(API_ENDPOINTS.auth.login, {
+        username,
         password,
       });
 
-      if (response.data.access_token) {
-        localStorage.setItem("access_token", response.data.access_token);
-        localStorage.setItem("token_type", response.data.token_type);
-        router.push("/dashboard");
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 500);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Invalid credentials. Please try again.");
-    } finally {
+      const errorMessage = err.response?.data?.detail || "Invalid username or password";
+      setError(errorMessage);
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="w-full md:w-1/2 bg-white px-6 py-10 flex flex-col justify-center">
+    <div className="min-h-screen flex bg-white">
+      <div className="w-full md:w-1/2 bg-white px-6 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-8 md:py-10 flex flex-col justify-center">
         <div className="w-full max-w-md mx-auto">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">SamvidhanAI</h1>
-          <p className="text-slate-500 mb-6 text-sm">Welcome back! Login to your account</p>
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Image src="/loogoo.png" alt="Logo" width={150} height={150} className="w-48 sm:w-56 h-auto object-contain" />
+          </div>
 
-          {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 mb-4">{error}</div>}
+          <p className="text-zinc-600 mb-8 text-sm">
+            Welcome back! Login to your account
+          </p>
+
+          {error && (
+            <div className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-5">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input label="Username or Email" placeholder="aryanboss" type="text" required icon={<User size={18} />} value={id} onChange={(e) => setId(e.target.value)} />
-            <Input label="Password" placeholder="••••••••" type="password" required icon={<Lock size={18} />} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <Input
+              label="Username or Email"
+              placeholder="username or email@company.com"
+              type="text"
+              required
+              icon={<Mail size={18} />}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+
+            <Input
+              label="Password"
+              placeholder="••••••••"
+              type="password"
+              required
+              icon={<Lock size={18} />}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
             <div className="flex justify-end">
-              <Link href="/auth/forgot-password" size="sm" className="text-xs text-zinc-500 hover:text-black hover:underline">Forgot password?</Link>
+              <Link href="/auth/forgot-password" className="text-sm text-zinc-700 hover:text-black font-medium transition-opacity duration-200">
+                Forgot password?
+              </Link>
             </div>
 
-            <button disabled={loading} type="submit" className="w-full rounded-xl bg-black py-3 text-sm text-white font-semibold flex items-center justify-center gap-2 hover:bg-zinc-800 transition">
-              {loading ? <Loader2 className="animate-spin w-4 h-4" /> : "Login"}
+            <button
+              disabled={loading}
+              type="submit"
+              className="w-full rounded-xl bg-black text-white py-3 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-zinc-800 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4" />
+                  <span>Logging in...</span>
+                </>
+              ) : (
+                <span>Login</span>
+              )}
             </button>
           </form>
 
-          <p className="pt-5 text-center text-sm text-slate-500">Don't have an account? <Link href="/auth/register" className="font-semibold text-black hover:underline">Sign Up</Link></p>
+          <p className="pt-6 text-center text-sm text-zinc-600">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/auth/register"
+              className="font-semibold text-black hover:text-zinc-700 transition-opacity duration-200"
+            >
+              Sign Up
+            </Link>
+          </p>
         </div>
       </div>
-      <AuthImageSlider />
+
+      <div className="hidden md:block md:w-1/2">
+        <AuthImageSlider />
+      </div>
     </div>
   );
 };
