@@ -18,13 +18,24 @@ DB_DIR = os.path.join(BASE_DIR, "chroma_db")
 # This creates a folder 'chroma_db' in the server directory
 client = chromadb.PersistentClient(path=DB_DIR)
 
-# Use OpenAI Embeddings
-# We use a try-except or default because if the user hasn't set the key, it will crash.
-# For the demo, we assume the key is present in .env
-openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-    api_key=os.getenv("OPENAI_API_KEY", ""),
-    model_name="text-embedding-3-small"
-)
+# Use FastEmbed (Local, Lightweight, No GPU/Key needed)
+# This solves the "Only Grok Key" constraint by handling embeddings locally without Torch.
+try:
+    from fastembed import TextEmbedding
+    
+    class FastEmbedFunction:
+        def __init__(self):
+            self.model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+            
+        def __call__(self, input: List[str]) -> List[List[float]]:
+            # FastEmbed returns a generator, convert to list
+            return list(self.model.embed(input))
+            
+    embedding_fn = FastEmbedFunction()
+    
+except ImportError:
+    print("FastEmbed not found. Please run: pip install fastembed")
+    embedding_fn = None # Will crash if run, but warns user
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     try:
@@ -71,7 +82,7 @@ def ingest_data():
     # Collection Name: legal_docs
     collection = client.get_or_create_collection(
         name="legal_docs",
-        embedding_function=openai_ef
+        embedding_function=embedding_fn
     )
     
     domain_map = {

@@ -14,15 +14,22 @@ class RAGService:
         # Initialize connection to the persistent DB created by ingest.py
         self.client = chromadb.PersistentClient(path=DB_DIR)
         
-        self.openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-            api_key=os.getenv("OPENAI_API_KEY", ""),
-            model_name="text-embedding-3-small"
-        )
+        # Initialize FastEmbed (Same as Ingest)
+        try:
+            from fastembed import TextEmbedding
+            class FastEmbedFunction:
+                def __init__(self):
+                    self.model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+                def __call__(self, input: List[str]) -> List[List[float]]:
+                    return list(self.model.embed(input))
+            self.embedding_fn = FastEmbedFunction()
+        except ImportError:
+            self.embedding_fn = None
         
         # Connect to the collection
         self.collection = self.client.get_collection(
             name="legal_docs",
-            embedding_function=self.openai_ef
+            embedding_function=self.embedding_fn
         )
 
     def retrieve_context(self, query: str, domain: str = None, n_results: int = 3) -> List[Dict]:

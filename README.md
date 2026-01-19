@@ -59,9 +59,9 @@ pip install -r requirements.txt
 
 # Create .env file with your GrokAI API Key
 echo "XAI_API_KEY=xai-..." > .env
-# Note: RAG Embeddings still default to OpenAI (text-embedding-3) or can be swapped for a free alternative if needed.
-# For full Grok integration, ensure you have the OpenAI SDK installed as it works with xAI's compatible endpoint.
-export OPENAI_API_KEY=sk-... # Still needed for Embeddings unless we switch embedding provider
+
+# Note: Embeddings are now handled LOCALLY via FastEmbed. 
+# NO OpenAI Key is required anymore.
 
 # Index the Data (Place PDFs in server/data/acts/...)
 python3 ingest.py
