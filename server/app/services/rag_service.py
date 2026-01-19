@@ -34,7 +34,7 @@ class RAGService:
 
     def retrieve_context(self, query: str, domain: str = None, n_results: int = 3) -> List[Dict]:
         """
-        Retrieves relevant legal chunks based on query and domain filter.
+        Retrieves relevant legal chunks.
         """
         where_filter = {}
         if domain:
@@ -46,8 +46,6 @@ class RAGService:
             where=where_filter
         )
         
-        # Parse Chroma results into a cleaner format
-        # results['documents'][0] is the list of docs for the first query
         citations = []
         if results['documents']:
             docs = results['documents'][0]
@@ -58,12 +56,31 @@ class RAGService:
                     "text": docs[i],
                     "metadata": metas[i]
                 })
-                
         return citations
+
+    def find_related_cases(self, query: str) -> List[str]:
+        """
+        Feature 2: Automated Case Law Cross-Referencing.
+        Specifically searches the 'CASE_LAW' domain.
+        """
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=2, # Top 2 relevant cases
+            where={"domain": "CASE_LAW"}
+        )
+        
+        cases = []
+        if results['metadatas']:
+            for meta in results['metadatas'][0]:
+                # Assuming filename or act metadata holds the Case Name
+                case_name = meta.get('act', 'Unknown Judgment')
+                if case_name not in cases:
+                    cases.append(case_name)
+        return cases
 
     def generate_answer(self, query: str, context: List[Dict]) -> str:
         """
-        Uses OpenAI to synthesize the answer based on the retrieved context.
+        Uses GrokAI to synthesize the answer.
         """
         if not context:
             return "I could not find any specific legal sections related to your query in the database. Please consult a lawyer for more details."
@@ -80,28 +97,23 @@ class RAGService:
             
         system_prompt = """
         You are SamvidhanAI, a highly accurate Indian Legal Assistant.
-        Your goal is to answer queries using ONLY the provided Legal Context.
         
-        Rules:
-        1. CITATIONS: When using information from a specific section, cite it explicitly (e.g., "According to Section 43A of the IT Act...").
-        2. STRICTNESS: Do not invent laws. If the context doesn't mention something, say you don't know.
-        3. TONE: Professional, authoritative, yet accessible to citizens.
-        4. STRUCTURE: Use bullet points for clarity.
-        """
+        Feature Requirements:
+        1. BILINGUAL: If the user asks in Hindi, YOU MUST ANSWER IN HINDI. If English, answer in English.
+        2. CITATIONS: Use the provided context to cite Sections explicitly.
+        3. TONE: Professional and authoritative.
         
-        user_message = f"""
         User Query: {query}
         
         Retrieved Legal Context:
         {context_str}
         
-        Please provide a comprehensive answer based on the above context.
+        Answer:
         """
         
         try:
             from openai import OpenAI
             # Using GrokAI (xAI)
-            # Documentation: https://docs.x.ai/docs
             client = OpenAI(
                 api_key=os.getenv("XAI_API_KEY"),
                 base_url="https://api.x.ai/v1"
@@ -111,7 +123,7 @@ class RAGService:
                 model="grok-2-latest", 
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
+                    {"role": "user", "content": f"Query: {query}"}
                 ],
                 temperature=0.1 
             )

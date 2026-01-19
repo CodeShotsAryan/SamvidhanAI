@@ -18,7 +18,11 @@ async def search_legal_code(request: SearchRequest):
         context=context
     )
     
-    # 3. Format Citations for Frontend
+    # 3. Feature 3: Automated Case Law Cross-Referencing
+    # Retrieve related judgments for the yellow layer
+    related_cases_list = rag_service.find_related_cases(request.query)
+    
+    # 4. Format Citations for Frontend
     formatted_citations = []
     for item in context:
         meta = item['metadata']
@@ -32,6 +36,6 @@ async def search_legal_code(request: SearchRequest):
     return {
         "answer": final_answer,
         "citations": formatted_citations,
-        "related_cases": [], # Future: Connect to Case Law DB
+        "related_cases": related_cases_list, # Now populated!
         "legal_domain_detected": request.domain or "GENERAL"
     }
