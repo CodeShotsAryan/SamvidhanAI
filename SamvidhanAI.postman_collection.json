@@ -1,0 +1,153 @@
+{
+    "info": {
+        "_postman_id": "samvidhan-ai-collection",
+        "name": "SamvidhanAI Cloud API",
+        "description": "Collection for testing SamvidhanAI endpoints on Hugging Face Spaces.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Auth: Register",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"email\": \"user@example.com\",\n    \"password\": \"securepassword\",\n    \"full_name\": \"Test User\"\n}"
+                },
+                "url": {
+                    "raw": "https://aryancse1-samvidhanai.hf.space/auth/register",
+                    "protocol": "https",
+                    "host": [
+                        "aryancse1-samvidhanai",
+                        "hf",
+                        "space"
+                    ],
+                    "path": [
+                        "auth",
+                        "register"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth: Login",
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "var jsonData = pm.response.json();",
+                            "pm.environment.set(\"jwt_token\", jsonData.access_token);"
+                        ],
+                        "type": "text/javascript"
+                    }
+                }
+            ],
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/x-www-form-urlencoded",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "urlencoded",
+                    "urlencoded": [
+                        {
+                            "key": "username",
+                            "value": "user@example.com",
+                            "type": "text"
+                        },
+                        {
+                            "key": "password",
+                            "value": "securepassword",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "https://aryancse1-samvidhanai.hf.space/auth/login",
+                    "protocol": "https",
+                    "host": [
+                        "aryancse1-samvidhanai",
+                        "hf",
+                        "space"
+                    ],
+                    "path": [
+                        "auth",
+                        "login"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Auth: Get Me (Protected)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{jwt_token}}",
+                        "type": "text"
+                    }
+                ],
+                "url": {
+                    "raw": "https://aryancse1-samvidhanai.hf.space/auth/me",
+                    "protocol": "https",
+                    "host": [
+                        "aryancse1-samvidhanai",
+                        "hf",
+                        "space"
+                    ],
+                    "path": [
+                        "auth",
+                        "me"
+                    ]
+                }
+            },
+            "response": []
+        },
+        {
+            "name": "Legal Search",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json",
+                        "type": "text"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"query\": \"Punishment for murder?\",\n    \"domain\": \"CRIMINAL_LAW\"\n}"
+                },
+                "url": {
+                    "raw": "https://aryancse1-samvidhanai.hf.space/search/",
+                    "protocol": "https",
+                    "host": [
+                        "aryancse1-samvidhanai",
+                        "hf",
+                        "space"
+                    ],
+                    "path": [
+                        "search",
+                        ""
+                    ]
+                }
+            },
+            "response": []
+        }
+    ]
+}
