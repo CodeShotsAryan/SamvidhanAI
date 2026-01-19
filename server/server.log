@@ -1,19 +1,11 @@
 nohup: ignoring input
-INFO:     Started server process [1308071]
+INFO:     Started server process [1322157]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:33180 - "HEAD /auth/register HTTP/1.1" 405 Method Not Allowed
-INFO:     127.0.0.1:45014 - "POST /auth/register HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57588 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:56464 - "POST /auth/register HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:33060 - "POST /auth/register/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:33060 - "POST /auth/register HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:38538 - "POST /auth/register/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:38538 - "POST /auth/register HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:48384 - "POST /auth/register/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48384 - "POST /auth/register HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48384 - "POST /auth/register/ HTTP/1.1" 307 Temporary Redirect
-INFO:     127.0.0.1:48384 - "POST /auth/register HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:34124 - "POST /auth/register HTTP/1.1" 400 Bad Request
-INFO:     127.0.0.1:36094 - "POST /auth/register HTTP/1.1" 200 OK
+DEBUG: OTP for json3@example.com is 909975
+INFO:     127.0.0.1:54652 - "POST /auth/register HTTP/1.1" 200 OK
+📧 Attempting to send OTP to json3@example.com via SMTP...
+❌ SMTP ERROR: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials d9443c01a7336-2a7193dca71sm88643275ad.48 - gsmtp')
+INFO:     127.0.0.1:53508 - "POST /auth/verify-otp HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53524 - "POST /auth/login HTTP/1.1" 200 OK

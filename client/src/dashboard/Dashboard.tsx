@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
+import api from '../lib/api';
 import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp } from 'lucide-react';
 import {
     PromptInput,
@@ -14,7 +15,6 @@ import {
     PromptInputBody,
     PromptInputTools,
     PromptInputAttachments,
-    PromptInputAttachment,
 } from '../components/ai-elements/prompt-input';
 
 import {
@@ -40,13 +40,8 @@ interface Conversation {
 
 const LEGAL_DOMAINS = [
     'Criminal Law',
-    // 'Constitutional Law',
-    // 'Civil Law',
     'Corporate & Commercial Law',
     'Cyber & IT Law',
-    // 'Environmental Law',
-    // 'Labour & Employment Law',
-    // 'Taxation Law',
 ];
 
 const DOMAIN_ICONS: Record<string, any> = {
@@ -77,7 +72,7 @@ function CompactAttachment({ file }: { file: any }) {
     return (
         <div className="flex items-center gap-1.5 px-2 py-1 bg-zinc-50 border border-zinc-200 rounded-md text-xs text-zinc-700">
             <Paperclip className="w-3 h-3 text-zinc-400" />
-            <span className="font-medium truncate max-w-[200px]">{file.filename || 'Attachment'}</span>
+            <span className="font-medium truncate max-w-[200px]">{file.name || 'Attachment'}</span>
             <button
                 onClick={(e) => {
                     e.stopPropagation();
@@ -94,37 +89,14 @@ function CompactAttachment({ file }: { file: any }) {
 
 function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGenerating: boolean; onSubmit: (msg: { text: string; files?: any[] }) => void; stopGeneration: () => void }) {
     const controller = usePromptInputController();
-    const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
-
-    // Load from localStorage on mount and set the controller's value
-    useEffect(() => {
-        if (!hasLoadedFromStorage) {
-            const savedPrompt = localStorage.getItem('samvidhan-draft-prompt');
-            if (savedPrompt) {
-                controller.textInput.setInput(savedPrompt);
-            }
-            setHasLoadedFromStorage(true);
-        }
-    }, [hasLoadedFromStorage, controller]);
-
-    // Save to localStorage whenever text changes
-    useEffect(() => {
-        if (hasLoadedFromStorage) {
-            const text = controller.textInput.value;
-            if (text) {
-                localStorage.setItem('samvidhan-draft-prompt', text);
-            } else {
-                localStorage.removeItem('samvidhan-draft-prompt');
-            }
-        }
-    }, [controller.textInput.value, hasLoadedFromStorage]);
 
     const handleSubmit = () => {
         const text = controller.textInput.value;
-        if (!text.trim()) return;
-        onSubmit({ text });
+        const files = controller.attachments.all;
+        if (!text.trim() && files.length === 0) return;
+        onSubmit({ text, files });
         controller.textInput.clear();
-        localStorage.removeItem('samvidhan-draft-prompt');
+        controller.attachments.clear();
     };
 
     return (
@@ -136,7 +108,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 <PromptInputTextarea
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && !isGenerating && (e.preventDefault(), handleSubmit())}
                     disabled={isGenerating}
-                    placeholder={isGenerating ? "Generating..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')"}
+                    placeholder={isGenerating ? "Generating..." : "Ask a legal question... (e.g. 'Compare IPC 302 vs BNS 103')"}
                     className="bg-transparent text-black placeholder:text-zinc-400 resize-none min-h-[44px] max-h-[200px] text-sm lg:text-base disabled:opacity-50 py-2.5"
                 />
             </PromptInputBody>
@@ -145,13 +117,13 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                     <AttachButton />
                 </PromptInputTools>
                 {isGenerating ? (
-                    <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2 transition-opacity duration-200">
+                    <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2">
                         <Square className="w-4 h-4" fill="currentColor" />
                     </button>
                 ) : (
                     <PromptInputSubmit
                         onClick={handleSubmit}
-                        disabled={!controller.textInput.value.trim()}
+                        disabled={!controller.textInput.value.trim() && controller.attachments.all.length === 0}
                         status="ready"
                         className="bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-400 transition-opacity duration-200 rounded-lg p-2"
                     >
@@ -166,46 +138,42 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
 export default function Dashboard() {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
-    const [conversations, setConversations] = useState<Conversation[]>([
-        { id: 1, title: 'IPC Section 302 vs BNS 103', date: '2 hours ago', messages: [] },
-        { id: 2, title: 'Corporate Law Compliance', date: 'Yesterday', messages: [] },
-        { id: 3, title: 'Environmental Regulations 2024', date: '2 days ago', messages: [] },
-        { id: 4, title: 'Supreme Court IT Act Judgments', date: '3 days ago', messages: [] },
-        { id: 5, title: 'Legal Document Summary', date: '1 week ago', messages: [] },
-    ]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<SDKMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; size: number }[]>([]);
+    const [user, setUser] = useState<any>(null);
+
+    // Fetch user on mount
+    useEffect(() => {
+        const token = localStorage.getItem("access_token");
+        if (token) {
+            api.get("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+                .then(res => setUser(res.data))
+                .catch(() => {
+                    localStorage.removeItem("access_token");
+                    // window.location.href = "/auth/login";
+                });
+        }
+    }, []);
 
     useEffect(() => {
         setIsGenerating(isLoading);
     }, [isLoading]);
 
     const suggestions = [
-        'Compare IPC 420 vs BNS Section 318',
-        'Summarize recent Supreme Court privacy judgments',
+        'Compare IPC 420 vs BNS 318',
+        'Summarize IPC 302 related punishments',
         'What are the new bail provisions under BNSS?',
         'Draft a legal notice for breach of contract',
     ];
 
-    useEffect(() => {
-        if (selectedConversation !== null) {
-            const conv = conversations.find(c => c.id === selectedConversation);
-            if (conv) {
-                setMessages(conv.messages);
-            }
-        }
-    }, [selectedConversation, conversations]);
-
-    const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-
     const createNewConversation = (firstMessage: string) => {
-        const newId = Math.max(...conversations.map(c => c.id), 0) + 1;
+        const newId = Date.now();
         const newConv: Conversation = {
             id: newId,
-            title: firstMessage.slice(0, 50),
+            title: firstMessage.slice(0, 40) + '...',
             date: 'Just now',
             messages: [],
         };
@@ -220,323 +188,158 @@ export default function Dashboard() {
         ));
     };
 
+    const callBackend = async (text: string, files?: any[]) => {
+        try {
+            // 1. Check if it's a "Compare" request
+            if (text.toLowerCase().includes("compare") || text.toLowerCase().includes("vs")) {
+                const match = text.match(/\d+/);
+                if (match) {
+                    const res = await api.post("/compare/", { ipc_section: match[0] });
+                    let content = `### Law Comparison\n\n${res.data.comparison_text}\n\n**Key Changes:**\n`;
+                    res.data.key_changes.forEach((c: string) => content += `- ${c}\n`);
+                    return content;
+                }
+            }
+
+            // 2. Check if a PDF is attached (for Summarize)
+            if (files && files.length > 0) {
+                const formData = new FormData();
+                formData.append("file", files[0].file);
+                const res = await api.post("/summarize/", formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                return `### Document Summary\n\n${res.data.summary}\n\n**Verdict:** ${res.data.verdict}`;
+            }
+
+            // 3. Default: Search/Ask
+            const res = await api.post("/search/", {
+                query: text,
+                domain: selectedDomain?.toUpperCase().replace(/ /g, "_") || "GENERAL"
+            });
+
+            const ans = res.data.structured_answer;
+            let content = `${ans.green_layer}\n\n**Detailed Analysis:**\n${ans.yellow_layer}\n\n**Penalties/Strictness:**\n${ans.red_layer}\n\n**Citations:**\n`;
+            res.data.citations.forEach((c: any) => {
+                content += `- [${c.source} Sec ${c.section}](${c.url})\n`;
+            });
+            return content;
+
+        } catch (err: any) {
+            return `❌ Error: ${err.response?.data?.detail || "Could not connect to legal brain. Make sure the server is healthy."}`;
+        }
+    };
+
+    const handleSubmit = async (input: { text: string; files?: any[] }) => {
+        if (!input.text.trim() && (!input.files || input.files.length === 0)) return;
+
+        let convId = selectedConversation;
+        if (convId === null) {
+            convId = createNewConversation(input.text || "New Document Analysis");
+        }
+
+        const userMsg: SDKMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: input.text,
+            files: input.files?.map(f => ({ name: f.file.name, type: f.file.type, size: f.file.size }))
+        };
+
+        const newMessages = [...messages, userMsg];
+        setMessages(newMessages);
+        updateConversationMessages(convId, newMessages);
+        setIsLoading(true);
+
+        const aiResponse = await callBackend(input.text, input.files);
+
+        const aiMsg: SDKMessage = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: aiResponse,
+        };
+        const finalMessages = [...newMessages, aiMsg];
+        setMessages(finalMessages);
+        updateConversationMessages(convId!, finalMessages);
+        setIsLoading(false);
+    };
+
     const handleSuggestionClick = (suggestion: string) => {
-        let convId = selectedConversation;
-        if (convId === null) {
-            convId = createNewConversation(suggestion);
-        }
-
-        const userMsg: SDKMessage = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: suggestion,
-        };
-
-        const newMessages = [...messages, userMsg];
-        setMessages(newMessages);
-        updateConversationMessages(convId, newMessages);
-        setIsLoading(true);
-
-        setTimeout(() => {
-            const aiMsg: SDKMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: `Here is a preliminary analysis of "${suggestion}":\n\n[Detailed legal analysis would appear here based on RAG retrieval from BNS/IPC database...]\n\nSources:\n1. Bhartiya Nyaya Sanhita, 2023\n2. Supreme Court Case Law DB`,
-            };
-            const finalMessages = [...newMessages, aiMsg];
-            setMessages(finalMessages);
-            updateConversationMessages(convId!, finalMessages);
-            setIsLoading(false);
-        }, 1500);
+        handleSubmit({ text: suggestion });
     };
-
-    const handleSubmit = (message: { text: string; files?: any[] }) => {
-        if (!message.text.trim()) return;
-
-        let convId = selectedConversation;
-        if (convId === null) {
-            convId = createNewConversation(message.text);
-        }
-
-        const fileData = message.files?.map((f: any) => ({
-            name: f.name,
-            type: f.type,
-            size: f.size
-        })) || [];
-
-        const userMsg: SDKMessage = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: message.text,
-            files: fileData.length > 0 ? fileData : undefined,
-        };
-
-        const newMessages = [...messages, userMsg];
-        setMessages(newMessages);
-        updateConversationMessages(convId, newMessages);
-        setIsLoading(true);
-
-        setTimeout(() => {
-            const aiMsg: SDKMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: `Processing your query regarding: "${message.text}"...\n\nAccording to the relevant sections of the Bhartiya Nyaya Sanhita (BNS) and associated case law:\n\n1. Section Analysis...\n2. Key Precedents...\n\nPlease consult a legal professional for specific advice.`,
-            };
-            const finalMessages = [...newMessages, aiMsg];
-            setMessages(finalMessages);
-            updateConversationMessages(convId!, finalMessages);
-            setIsLoading(false);
-        }, 1500);
-    };
-
-
 
     const handleNewQuery = () => {
         setSelectedConversation(null);
         setMessages([]);
         setSelectedDomain(null);
-        if (window.innerWidth < 1024) {
-            setSidebarOpen(false);
-        }
-    };
-
-    const handleConversationClick = (id: number) => {
-        setSelectedConversation(id);
     };
 
     return (
-        <div className="flex h-screen bg-white text-black overflow-hidden">
-            <aside
-                className={`${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0 lg:w-0'
-                    } fixed lg:relative z-30 h-full bg-black text-white transition-all duration-300 ease-in-out flex flex-col overflow-hidden`}
-            >
-                <div className="p-4 border-b border-zinc-800 flex items-center justify-between min-w-[16rem]">
-                    <div className="flex items-center gap-2">
-                        <Scale className="w-5 h-5 text-white" />
-                        <span className="font-semibold text-base tracking-tight text-white">SamvidhanAI</span>
-                    </div>
-                    <button
-                        onClick={() => setSidebarOpen(false)}
-                        className="lg:hidden p-1.5 hover:bg-zinc-800 rounded transition-opacity duration-200 cursor-pointer text-zinc-400 hover:text-white"
-                        aria-label="Close sidebar"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
+        <div className="flex h-screen bg-white text-black overflow-hidden font-sans">
+            {/* Sidebar */}
+            <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-black text-white transition-all duration-300 flex flex-col overflow-hidden`}>
+                <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
+                    <span className="font-bold">SamvidhanAI</span>
+                    <Plus className="cursor-pointer" onClick={handleNewQuery} />
                 </div>
-
-                <div className="p-3 min-w-[16rem]">
-                    <button
-                        onClick={handleNewQuery}
-                        className="w-full flex items-center justify-center gap-2 bg-white text-black py-2.5 px-4 rounded-lg hover:bg-zinc-100 transition-opacity duration-200 cursor-pointer font-medium text-sm"
-                    >
-                        <Plus className="w-4 h-4" />
-                        New Query
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-2 min-w-[16rem]">
-                    <div className="text-xs text-zinc-400 px-3 mb-3 mt-2 font-semibold uppercase tracking-wider">
-                        Research History
-                    </div>
-                    {conversations.map((conv) => (
-                        <button
-                            key={conv.id}
-                            onClick={() => handleConversationClick(conv.id)}
-                            className={`w-full text-left p-3 rounded-lg mb-2 transition-opacity duration-200 group ${selectedConversation === conv.id
-                                ? 'bg-zinc-800 text-white'
-                                : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
-                                }`}
-                        >
-                            <div className="flex items-start gap-2">
-                                <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium truncate">{conv.title}</div>
-                                    <div className="text-xs opacity-60 mt-0.5">{conv.date}</div>
-                                </div>
-                            </div>
-                        </button>
+                <div className="flex-1 overflow-y-auto p-2">
+                    {conversations.map(conv => (
+                        <div key={conv.id} onClick={() => { setSelectedConversation(conv.id); setMessages(conv.messages); }} className={`p-3 rounded-lg cursor-pointer mb-1 text-sm truncate ${selectedConversation === conv.id ? 'bg-zinc-800' : 'hover:bg-zinc-900'}`}>
+                            {conv.title}
+                        </div>
                     ))}
                 </div>
-
-                <div className="p-3 border-t border-zinc-800 min-w-[16rem]">
-                    <button className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-white transition-opacity duration-200 cursor-pointer text-sm">
-                        <User className="w-4 h-4" />
-                        <span className="font-medium">Settings</span>
-                    </button>
+                <div className="p-4 border-t border-zinc-800 text-xs flex items-center gap-2">
+                    <div className="w-6 h-6 bg-zinc-700 rounded-full flex items-center justify-center">{user?.username?.[0].toUpperCase() || 'U'}</div>
+                    {user?.username || 'Guest'}
                 </div>
             </aside>
 
-            <main className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-                <header className="bg-white border-b border-zinc-200 px-4 lg:px-6 py-3 flex items-center justify-between z-10">
-                    <div className="flex items-center gap-3">
-                        {!sidebarOpen && (
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600"
-                                aria-label="Toggle sidebar"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-                        {sidebarOpen && (
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 hidden lg:block"
-                                aria-label="Toggle sidebar"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-                        {sidebarOpen && (
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 lg:hidden"
-                                aria-label="Toggle sidebar"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-                        <span className="text-sm font-semibold text-zinc-800 lg:hidden">SamvidhanAI</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600" aria-label="Search">
-                            <Search className="w-4 h-4" />
-                        </button>
-                        <button className="flex items-center gap-2 p-1.5 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer">
-                            <div className="w-7 h-7 bg-black text-white rounded-full flex items-center justify-center font-semibold text-xs">
-                                SB
-                            </div>
-                        </button>
-                    </div>
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col">
+                <header className="p-4 border-b border-zinc-100 flex items-center justify-between">
+                    <Menu className="cursor-pointer" onClick={() => setSidebarOpen(!sidebarOpen)} />
+                    <div className="text-sm font-semibold">Legal Intelligence Hub</div>
+                    <div />
                 </header>
 
-                <div className="flex-1 overflow-y-auto w-full">
-                    <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
+                <div className="flex-1 overflow-y-auto px-4 py-8">
+                    <div className="max-w-3xl mx-auto">
                         {messages.length === 0 ? (
-                            <div className="mt-8 lg:mt-16 text-center">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-50 text-zinc-900 rounded-2xl mb-5 border border-zinc-200">
-                                    <Scale className="w-8 h-8" />
-                                </div>
-
-                                <div className="mb-8">
-                                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
-                                        Filter by Domain
-                                    </div>
-                                    <div className="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
-                                        {LEGAL_DOMAINS.map((domain) => {
-                                            const Icon = DOMAIN_ICONS[domain];
-                                            return (
-                                                <button
-                                                    key={domain}
-                                                    onClick={() => setSelectedDomain(selectedDomain === domain ? null : domain)}
-                                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-opacity duration-200 cursor-pointer ${selectedDomain === domain
-                                                        ? 'bg-black text-white'
-                                                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                                                        }`}
-                                                >
-                                                    <Icon className="w-3 h-3" />
-                                                    {domain}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl mx-auto text-left">
-                                    {suggestions.map((suggestion, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => handleSuggestionClick(suggestion)}
-                                            className="p-4 border border-zinc-200 rounded-xl hover:border-zinc-400 hover:shadow-md hover:bg-zinc-50 transition-opacity duration-200 cursor-pointer group flex items-start gap-3 bg-white"
-                                        >
-                                            <Gavel className="w-4 h-4 mt-0.5 text-zinc-400 group-hover:text-zinc-900 transition-opacity duration-200 flex-shrink-0" />
-                                            <div className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900">{suggestion}</div>
-                                        </button>
+                            <div className="text-center py-20">
+                                <Scale className="mx-auto w-12 h-12 mb-4 text-zinc-300" />
+                                <h2 className="text-2xl font-bold mb-8">What can I help you research today?</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {suggestions.map((s, i) => (
+                                        <div key={i} onClick={() => handleSuggestionClick(s)} className="p-4 border border-zinc-200 rounded-xl hover:bg-zinc-50 cursor-pointer text-sm font-medium">{s}</div>
                                     ))}
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-8 pb-24">
-                                {messages.map((m) => (
-                                    <Message
-                                        key={m.id}
-                                        from={m.role === 'user' ? 'user' : 'assistant'}
-                                    >
-                                        <MessageContent className="text-sm lg:text-base">
-                                            {m.content}
-                                            {m.files && m.files.length > 0 && (
-                                                <div className="mt-2 flex flex-wrap gap-2">
-                                                    {m.files.map((file, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs text-zinc-700">
-                                                            <FileText className="w-3 h-3" />
-                                                            <span className="font-medium">{file.name}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </MessageContent>
-                                    </Message>
+                            <div className="space-y-6">
+                                {messages.map(m => (
+                                    <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[85%] p-4 rounded-2xl ${m.role === 'user' ? 'bg-black text-white' : 'bg-zinc-50 text-zinc-900 border border-zinc-100'}`}>
+                                            <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+                                        </div>
+                                    </div>
                                 ))}
-                                {isLoading && (
-                                    <Message from="assistant">
-                                        <MessageContent>
-                                            <Shimmer className="text-sm lg:text-base">Analyzing your legal query...</Shimmer>
-                                        </MessageContent>
-                                    </Message>
-                                )}
+                                {isLoading && <div className="p-4 bg-zinc-50 rounded-2xl w-24 animate-pulse">...</div>}
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="border-t border-zinc-200 bg-white px-4 lg:px-6 py-4 sticky bottom-0 z-20">
+                {/* Input Area */}
+                <div className="p-4 border-t border-zinc-100 bg-white">
                     <div className="max-w-3xl mx-auto">
-                        {selectedDomain && (
-                            <div className="mb-2 flex items-center gap-2">
-                                <span className="text-xs text-zinc-500">Filtering by:</span>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-black text-white text-xs font-medium rounded-full">
-                                    {React.createElement(DOMAIN_ICONS[selectedDomain], { className: "w-3 h-3" })}
-                                    {selectedDomain}
-                                    <button
-                                        onClick={() => setSelectedDomain(null)}
-                                        className="ml-1 hover:bg-zinc-800 rounded-full p-0.5 transition-opacity duration-200"
-                                        aria-label="Remove filter"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </span>
-                            </div>
-                        )}
                         <PromptInputProvider>
-                            <div className="border border-zinc-200 rounded-xl transition-opacity duration-200 bg-white overflow-hidden shadow-sm">
-                                <PromptInput
-                                    onSubmit={handleSubmit}
-                                    className="border-0"
-                                >
-                                    <PromptInputWrapper
-                                        isGenerating={isGenerating}
-                                        onSubmit={handleSubmit}
-                                        stopGeneration={() => {
-                                            setIsLoading(false);
-                                            setIsGenerating(false);
-                                        }}
-                                    />
+                            <div className="border border-zinc-100 rounded-2xl shadow-sm overflow-hidden bg-zinc-50/50">
+                                <PromptInput onSubmit={handleSubmit}>
+                                    <PromptInputWrapper isGenerating={isLoading} onSubmit={handleSubmit} stopGeneration={() => setIsLoading(false)} />
                                 </PromptInput>
                             </div>
                         </PromptInputProvider>
-                        <div className="text-xs text-zinc-500 text-center mt-2 font-medium">
-                            SamvidhanAI provides legal information for research purposes. Verify with official sources.
-                        </div>
                     </div>
                 </div>
-
-                {sidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/60 z-20 lg:hidden transition-opacity duration-300"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                )}
             </main>
         </div>
     );
