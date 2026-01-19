@@ -93,19 +93,24 @@ class RAGService:
         
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            # Using GrokAI (xAI)
+            # Documentation: https://docs.x.ai/docs
+            client = OpenAI(
+                api_key=os.getenv("XAI_API_KEY"),
+                base_url="https://api.x.ai/v1"
+            )
             
             response = client.chat.completions.create(
-                model="gpt-4o",   # Or gpt-3.5-turbo if cost is a concern
+                model="grok-2-latest", 
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
                 ],
-                temperature=0.1 # Low temperature for factual accuracy
+                temperature=0.1 
             )
             return response.choices[0].message.content
         except Exception as e:
-            return f"Error generating Answer: {str(e)}"
+            return f"Error generating Answer with GrokAI: {str(e)}"
 
 # Singleton instance
 rag_service = RAGService()

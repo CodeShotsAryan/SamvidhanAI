@@ -24,12 +24,14 @@ async def summarize_document(file: UploadFile = File(...)):
         if len(text) < 50:
              raise HTTPException(status_code=400, detail="PDF content is too short or unreadable.")
              
-        # 2. Call LLM for Summarization
+        # 2. Call LLM for Summarization (GrokAI)
         # Truncate text if too long (simple heuristic for now)
-        # Real system would chunk it.
-        truncated_text = text[:10000] 
+        truncated_text = text[:15000] # Grok has larger context window compared to standard small models
         
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        client = OpenAI(
+            api_key=os.getenv("XAI_API_KEY"),
+            base_url="https://api.x.ai/v1"
+        )
         prompt = f"""
         You are an expert Legal Summarizer.
         Summarize the following legal document into clear key points.
@@ -40,7 +42,7 @@ async def summarize_document(file: UploadFile = File(...)):
         """
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="grok-2-latest",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2
         )
