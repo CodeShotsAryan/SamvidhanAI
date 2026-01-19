@@ -129,3 +129,36 @@ async function summarizeDocument(fileObject) {
   ]
 }
 ```
+
+---
+
+## 4. User Authentication (Neon DB)
+
+### Register User
+**Endpoint:** `POST /auth/register`
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword",
+  "full_name": "John Doe"
+}
+```
+
+### Login
+**Endpoint:** `POST /auth/login`
+**Content-Type:** `application/x-www-form-urlencoded`
+```text
+username=user@example.com
+password=securepassword
+```
+**Response:**
+```json
+{
+  "access_token": "eyJhbG...",
+  "token_type": "bearer"
+}
+```
+
+### Get Current User
+**Endpoint:** `GET /auth/me`
+**Header:** `Authorization: Bearer <access_token>`
