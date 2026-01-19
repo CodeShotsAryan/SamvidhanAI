@@ -1,8 +1,10 @@
-# SamvidhanAI - AI-Powered Legal Intelligence System (Server)
+# SamvidhanAI - AI-Powered Legal Intelligence System
 
 SamvidhanAI is an advanced **Retrieval-Augmented Generation (RAG)** framework designed to demystify the Indian Justice System. It empowers legal professionals and citizens with precise, context-aware answers grounded in official statutory law.
 
-> **Note:** This repository contains the **Server/Backend** code only. The Frontend is maintained separately.
+> **Project Structure:**
+> *   `server/`: The Python FastAPI Backend (Handled by Backend Team).
+> *   `client/`: The Frontend Application (To be added by Frontend Team).
 
 ## 🚀 Key Features
 
@@ -19,11 +21,14 @@ Every claim is backed by click-through citations to the exact section of the Act
 
 ## 🛠️ Architecture
 
-### Server
+### Server (Your Workspace)
 *   **Framework:** FastAPI (Python) - High-performance async API.
 *   **RAG Engine:** LangChain + Vector Search (ChromaDB).
 *   **Ingestion:** Custom PDF Parser -> Semantic Chunking -> Metadata Tagging.
 *   **Embeddings:** OpenAI / Multilingual Sentence Transformers.
+
+### Client (Collab Workspace)
+*   **Status:** Reserved for Frontend Team implementation.
 
 ## 📂 Project Structure
 

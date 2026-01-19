@@ -56,37 +56,56 @@ class RAGService:
 
     def generate_answer(self, query: str, context: List[Dict]) -> str:
         """
-        Uses an LLM (OpenAI/Gemini) to synthesize the answer.
-        Placeholder implementation for now using formatted string.
-        Real implementation would call client.chat.completions.create
+        Uses OpenAI to synthesize the answer based on the retrieved context.
         """
         if not context:
-            return "I could not find any specific legal sections related to your query in the database."
+            return "I could not find any specific legal sections related to your query in the database. Please consult a lawyer for more details."
             
-        # Construct Prompt
+        # Construct Context Block
         context_str = ""
         for item in context:
             meta = item['metadata']
-            context_str += f"Source: {meta['act']} (Section {meta['section']})\nContent: {item['text']}\n\n"
+            context_str += f"""
+            [Source: {meta.get('act', 'Unknown Act')} | Section: {meta.get('section', 'N/A')}]
+            {item['text']}
+            --------------------------------------------------
+            """
             
-        prompt = f"""
-        You are SamvidhanAI, an expert Indian Legal Assistant.
-        Answer the user's question based ONLY on the following legal context.
-        If the answer is not in the context, say "I don't have enough information."
+        system_prompt = """
+        You are SamvidhanAI, a highly accurate Indian Legal Assistant.
+        Your goal is to answer queries using ONLY the provided Legal Context.
         
-        Context:
-        {context_str}
-        
-        User Question: {query}
-        
-        Answer:
+        Rules:
+        1. CITATIONS: When using information from a specific section, cite it explicitly (e.g., "According to Section 43A of the IT Act...").
+        2. STRICTNESS: Do not invent laws. If the context doesn't mention something, say you don't know.
+        3. TONE: Professional, authoritative, yet accessible to citizens.
+        4. STRUCTURE: Use bullet points for clarity.
         """
         
-        # In a real app, we would make the API call here.
-        # For this stage, we return the prompt to prove the RAG pipeline constructed it.
-        # return call_llm(prompt) 
+        user_message = f"""
+        User Query: {query}
         
-        return f"[Simulated LLM Output based on {len(context)} retrieved chunks]\n\nBased on {context[0]['metadata']['act']}, Section {context[0]['metadata']['section']}..."
+        Retrieved Legal Context:
+        {context_str}
+        
+        Please provide a comprehensive answer based on the above context.
+        """
+        
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            
+            response = client.chat.completions.create(
+                model="gpt-4o",   # Or gpt-3.5-turbo if cost is a concern
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
+                temperature=0.1 # Low temperature for factual accuracy
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Error generating Answer: {str(e)}"
 
 # Singleton instance
 rag_service = RAGService()
