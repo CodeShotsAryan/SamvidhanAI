@@ -1,29 +1,41 @@
-import aiosmtplib
-from email.message import EmailMessage
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import random
 import os
-from datetime import datetime, timedelta
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_USER = os.getenv("SMTP_USER") # user@gmail.com
-SMTP_PASS = os.getenv("SMTP_PASS") # APP PASSWORD
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASS = os.getenv("SMTP_PASS")
 
-async def send_otp_email(target_email: str, otp: str):
-    message = EmailMessage()
-    message["From"] = SMTP_USER
-    message["To"] = target_email
-    message["Subject"] = "SamvidhanAI - Your Verification Code"
-    message.set_content(f"Your OTP code is: {otp}. It expires in 5 minutes.")
+def send_otp_email(target_email: str, otp: str):
+    print(f"📧 Attempting to send OTP to {target_email} via SMTP...")
+    
+    if not SMTP_USER or not SMTP_PASS:
+        print("❌ SMTP credentials missing in .env")
+        return
 
-    await aiosmtplib.send(
-        message,
-        hostname=SMTP_SERVER,
-        port=SMTP_PORT,
-        username=SMTP_USER,
-        password=SMTP_PASS,
-        start_tls=True
-    )
+    try:
+        # Create message
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_USER
+        msg["To"] = target_email
+        msg["Subject"] = "SamvidhanAI - Your Verification Code"
+        
+        body = f"Your OTP code is: {otp}. It expires in 3 minutes."
+        msg.attach(MIMEText(body, "plain"))
+
+        # Connect and send
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"✅ OTP sent successfully to {target_email}")
+    except Exception as e:
+        print(f"❌ SMTP ERROR: {e}")
 
 def generate_otp():
     return str(random.randint(100000, 999999))
