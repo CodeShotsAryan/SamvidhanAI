@@ -43,12 +43,11 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     
-    # Hash password (and catch obscure Passlib/Bcrypt errors)
+    # Hash password
     try:
         hashed_pwd = get_password_hash(user.password)
     except Exception as e:
-        print(f"❌ HASHING ERROR: {e}")
-        raise HTTPException(status_code=500, detail=f"Crypto Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error hashing security credentials")
 
     # Create User
     new_user = User(email=user.email, hashed_password=hashed_pwd, full_name=user.full_name)
@@ -57,10 +56,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(new_user)
     except Exception as e:
-        print(f"❌ DATABASE ERROR: {e}") # Print to server logs
         db.rollback()
-        # Return the actual error to the user for debugging
-        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Database integrity error")
     
     return new_user
 
