@@ -1,0 +1,32 @@
+[
+    {
+        "ipc_section": "302",
+        "bns_section": "103",
+        "topic": "Punishment for Murder",
+        "description": "Under IPC 302, punishment for murder was defined. In BNS 103, this is retained but with inclusive language for mob lynching.",
+        "key_changes": [
+            "Section number changed",
+            "Added provisions for mob lynching in subsection 2"
+        ]
+    },
+    {
+        "ipc_section": "420",
+        "bns_section": "318",
+        "topic": "Cheating and dishonestly inducing delivery of property",
+        "description": "The famous Section 420 for cheating is now Section 318 in BNS.",
+        "key_changes": [
+            "Section number changed",
+            "Simplified language"
+        ]
+    },
+    {
+        "ipc_section": "124A",
+        "bns_section": "152",
+        "topic": "Sedition (Rajdroh vs Deshdroh)",
+        "description": "Sedition (124A) is repealed. BNS 152 introduces 'Acts endangering sovereignty, unity and integrity of India'.",
+        "key_changes": [
+            "Sedition term removed",
+            "Focus shifted to treason/subversive activities"
+        ]
+    }
+]
