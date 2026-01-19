@@ -8,16 +8,32 @@ SamvidhanAI is an advanced **Retrieval-Augmented Generation (RAG)** framework de
 
 ## 🚀 Key Features
 
-### 1. Multi-Jurisdictional Regulatory Filtering
-Intelligent routing of queries to specific legal domains (IT Law, Criminal Law, Corporate Law) ensures authoritative answers without cross-domain hallucinations.
+### 1. Bilingual Statutory Querying
+Enables users to submit queries in both **English and Hindi**, retrieving corresponding sections from the BNS and IPC with cross-linguistic accuracy using GrokAI.
 
-### 2. The "Green-Yellow-Red" Confidence System
-*   🟢 **Green Layer (Statutory Law):** Verified text directly from Acts (e.g., IT Act 2000).
-*   🟡 **Yellow Layer (Case Law):** Relevant landmark Supreme Court/High Court judgments.
-*   🔴 **Red Layer (AI Insights):** Pattern recognition and general legal observations (clearly marked as non-binding).
+### 2. Automated Case Law Cross-Referencing
+Identifies and presents landmark **Supreme Court and High Court judgments** relevant to the specific legal sections retrieved during the query process.
 
-### 3. Verifiable Source Footnoting
-Every claim is backed by click-through citations to the exact section of the Act, ensuring 100% traceability.
+### 3. Interactive Clause Comparison
+Provides a seamless lookup to compare old **IPC sections** (e.g., Section 302) with their updated counterparts in the new **BNS** (e.g., Section 103), tracking legislative changes.
+
+### 4. Multi-Jurisdictional Regulatory Filtering
+Allows users to refine legal searches by specific domains, such as **Corporate Law, IT Acts, or Criminal Law**, ensuring domain-specific precision and reducing hallucinations.
+
+### 5. Verifiable Source Footnoting
+Generates precise, **clickable citations** for every statement in the AI's response, linking directly to the specific Act and Section to ensure 100% traceability.
+
+### 6. Legal Document Summarization Tool
+A utility to process uploaded legal documents (PDFs), extracting core arguments, verdicts, and key points using the advanced context window of **Grok-2**.
+
+## 🐳 Docker Infrastructure
+The project is fully dockerized with a microservices architecture:
+
+1.  **`server`**: The FastAPI Backend (Python 3.10).
+2.  **`chromadb`**: Vector Database (Chroma) running locally on port 8001.
+    *   *Role:* persistent storage for Legal Embeddings.
+    *   *No API Key Required*.
+3.  **`postgres`**: Relational Database (PostgreSQL 15).
 
 ## 🛠️ Architecture
 

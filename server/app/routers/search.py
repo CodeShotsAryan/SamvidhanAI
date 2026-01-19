@@ -12,30 +12,34 @@ async def search_legal_code(request: SearchRequest):
         domain=request.domain
     )
     
-    # 2. Generate Answer using LLM
-    final_answer = rag_service.generate_answer(
+    # 2. Generate Answer using LLM (Returns Dict now)
+    answer_dict = rag_service.generate_answer(
         query=request.query, 
         context=context
     )
     
     # 3. Feature 3: Automated Case Law Cross-Referencing
-    # Retrieve related judgments for the yellow layer
     related_cases_list = rag_service.find_related_cases(request.query)
     
-    # 4. Format Citations for Frontend
+    # 4. Format Citations
     formatted_citations = []
     for item in context:
         meta = item['metadata']
         formatted_citations.append({
-            "act": meta.get("act", "Unknown"),
+            "id": f"{meta.get('act')}_{meta.get('section')}",
+            "source": meta.get("act", "Unknown"),
             "section": meta.get("section", "N/A"),
-            "text": item.get("text", ""),
-            "source_link": f"http://official-site.com/{meta.get('act', '').replace(' ', '_')}" # Placeholder link logic
+            "text": item.get("text", "")[:200] + "...", # Truncate for display
+            "url": f"https://indiankanoon.org/search/?formInput={meta.get('act', '').replace(' ', '+')}" 
         })
     
     return {
-        "answer": final_answer,
+        "structured_answer": {
+            "green_layer": answer_dict.get("green_layer", ""),
+            "yellow_layer": answer_dict.get("yellow_layer", ""),
+            "red_layer": answer_dict.get("red_layer", "")
+        },
         "citations": formatted_citations,
-        "related_cases": related_cases_list, # Now populated!
+        "related_cases": related_cases_list,
         "legal_domain_detected": request.domain or "GENERAL"
     }

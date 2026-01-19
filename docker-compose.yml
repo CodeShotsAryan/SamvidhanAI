@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # 1. FastAPI Backend
+  server:
+    build: ./server
+    container_name: samvidhan_server
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY} 
+      - CHROMA_SERVER_HOST=chromadb
+      - CHROMA_SERVER_PORT=8000
+    depends_on:
+      - chromadb
+      - postgres
+    volumes:
+      - ./server/data:/app/data # Mount data for local ingestion access
+
+  # 2. Vector Database (ChromaDB)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: samvidhan_chroma
+    ports:
+      - "8001:8000" # Map host 8001 to container 8000 to avoid conflict with API
+    volumes:
+      - chroma_data:/chroma/chroma # Persist vectors here
+    environment:
+      - IS_PERSISTENT=TRUE
+  
+  # 3. Relational Database (Postgres)
+  postgres:
+    image: postgres:15-alpine
+    container_name: samvidhan_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=samvidhan_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  chroma_data:
+  postgres_data:

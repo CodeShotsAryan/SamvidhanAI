@@ -6,13 +6,20 @@ class SearchRequest(BaseModel):
     domain: Optional[str] = None  # "IT_LAW", "CRIMINAL_LAW", "CORPORATE_LAW"
 
 class LawCitation(BaseModel):
-    act: str
+    id: str
+    source: str # Act Name
     section: str
     text: str
-    source_link: Optional[str] = None
+    url: Optional[str] = None
+
+# The "Green-Yellow-Red" Architecture
+class StructuredAnswer(BaseModel):
+    green_layer: str  # Statutory Law (The Truth)
+    yellow_layer: str # Case Law & Precedents
+    red_layer: str    # AI Simplification & Insight
 
 class SearchResponse(BaseModel):
-    answer: str
+    structured_answer: StructuredAnswer
     citations: List[LawCitation]
     related_cases: List[str]
     legal_domain_detected: str

@@ -14,9 +14,18 @@ BASE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_DIR = os.path.join(BASE_DIR, "chroma_db")
 
-# Initialize Chroma Client with persistence
-# This creates a folder 'chroma_db' in the server directory
-client = chromadb.PersistentClient(path=DB_DIR)
+# Initialize Chroma Client
+# Check if running in Docker mode
+CHROMA_HOST = os.getenv("CHROMA_SERVER_HOST")
+CHROMA_PORT = os.getenv("CHROMA_SERVER_PORT", "8000")
+
+if CHROMA_HOST:
+    print(f"Connecting to ChromaDB at {CHROMA_HOST}:{CHROMA_PORT}...")
+    client = chromadb.HttpClient(host=CHROMA_HOST, port=int(CHROMA_PORT))
+else:
+    # Local Persistence
+    print("Using Local ChromaDB Persistence...")
+    client = chromadb.PersistentClient(path=DB_DIR)
 
 # Use FastEmbed (Local, Lightweight, No GPU/Key needed)
 # This solves the "Only Grok Key" constraint by handling embeddings locally without Torch.
@@ -28,8 +37,14 @@ try:
             self.model = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
             
         def __call__(self, input: List[str]) -> List[List[float]]:
-            # FastEmbed returns a generator, convert to list
-            return list(self.model.embed(input))
+            return [x.tolist() if hasattr(x, "tolist") else list(x) for x in self.model.embed(input)]
+
+        def embed_documents(self, input: List[str]) -> List[List[float]]:
+            return [x.tolist() if hasattr(x, "tolist") else list(x) for x in self.model.embed(input)]
+
+
+        def name(self):
+            return "fastembed_bge_small" # Required by ChromaDB validation
             
     embedding_fn = FastEmbedFunction()
     
@@ -104,17 +119,26 @@ def ingest_data():
             continue
             
         for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+            raw_text = ""
+            
             if filename.endswith(".pdf"):
-                print(f"Processing {filename} ({domain})...")
-                file_path = os.path.join(folder_path, filename)
+                print(f"Processing PDF {filename} ({domain})...")
                 raw_text = extract_text_from_pdf(file_path)
-                
-                if not raw_text: continue
-                
-                file_chunks = chunk_text_by_section(raw_text, filename, domain)
-                
-                for idx, chunk in enumerate(file_chunks):
-                    # Unique ID: filename_section_idx
+            elif filename.endswith(".txt"):
+                print(f"Processing TXT {filename} ({domain})...")
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        raw_text = f.read()
+                except Exception as e:
+                    print(f"Error reading {filename}: {e}")
+            
+            if not raw_text: continue
+            
+            file_chunks = chunk_text_by_section(raw_text, filename, domain)
+            
+            for idx, chunk in enumerate(file_chunks):
+                # Unique ID: filename_section_idx
                     doc_id = f"{filename}_{chunk['metadata']['section']}_{idx}"
                     
                     ids.append(doc_id)

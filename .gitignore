@@ -1,0 +1,11 @@
+venv/
+server/venv/
+backend/venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+node_modules/
+.next/
+chroma_db/
+server/data/chroma_db/
