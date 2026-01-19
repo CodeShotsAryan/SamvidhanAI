@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@plugin "tailwindcss-animate";
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --color-background: #ffffff;
+  --color-muted-foreground: #71717a;
+}
+
+.dark {
+  --color-background: #18181b;
+  --color-muted-foreground: #a1a1aa;
+}
+
+/* Force remove all borders, shadows, and outlines from PromptInput components */
+[class*="InputGroup"],
+[class*="input-group"],
+.input-group,
+form[class*="w-full"] > div,
+form > div > div,
+form > div > div > div {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Target textarea specifically */
+textarea[name="message"],
+textarea[placeholder*="legal question"],
+textarea[placeholder*="Ask a legal question"] {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+textarea[name="message"]:focus,
+textarea[name="message"]:focus-visible,
+textarea[placeholder*="legal question"]:focus,
+textarea[placeholder*="legal question"]:focus-visible {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  ring: 0 !important;
+}
+
+/* Remove focus rings from all form elements in the prompt input */
+form[class*="w-full"] *:focus,
+form[class*="w-full"] *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  ring: 0 !important;
+}
+
+/* Target the actual InputGroup component from shadcn */
+.input-group,
+.input-group > div,
+[data-slot="input-group"],
+[data-slot="input-group"] > div {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
