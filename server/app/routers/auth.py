@@ -47,9 +47,15 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     
     # Create User
     new_user = User(email=user.email, hashed_password=hashed_pwd, full_name=user.full_name)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+    except Exception as e:
+        print(f"❌ DATABASE ERROR: {e}") # Print to server logs
+        db.rollback()
+        # Return the actual error to the user for debugging
+        raise HTTPException(status_code=500, detail=f"Database Error: {str(e)}")
     
     return new_user
 
@@ -89,3 +95,4 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
         raise HTTPException(status_code=404, detail="User not found")
         
     return user
+
