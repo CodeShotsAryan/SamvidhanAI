@@ -1,13 +1,3 @@
----
-title: SamvidhanAI
-emoji: ⚖️
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
-app_port: 7860
----
-
 # SamvidhanAI - AI-Powered Legal Intelligence System
 
 SamvidhanAI is an advanced **Retrieval-Augmented Generation (RAG)** framework designed to demystify the Indian Justice System. It empowers legal professionals and citizens with precise, context-aware answers grounded in official statutory law.

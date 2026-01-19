@@ -9,3 +9,4 @@ node_modules/
 .next/
 chroma_db/
 server/data/chroma_db/
+*.db

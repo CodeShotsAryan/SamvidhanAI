@@ -1,25 +1,43 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from ..database import get_db
-from ..models.user import User
+from ..models.user import User, PendingUser, PasswordReset
 from ..auth_utils import get_password_hash, verify_password, create_access_token
+from ..email_utils import send_otp_email, generate_otp
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Optional
+from datetime import datetime, timedelta
 
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
-    responses={404: {"description": "Not found"}},
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # Pydantic Schemas
 class UserCreate(BaseModel):
+    username: str
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+
+class OTPVerify(BaseModel):
+    email: EmailStr
+    otp_code: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp_code: str
+    new_password: str
 
 class Token(BaseModel):
     access_token: str
@@ -27,6 +45,7 @@ class Token(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
+    username: str
     email: str
     full_name: Optional[str] = None
     
@@ -35,57 +54,133 @@ class UserResponse(BaseModel):
 
 # --- Endpoints ---
 
-@router.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    # Check existing user
-    db_user = db.query(User).filter(User.email == user.email).first()
-    if db_user:
+@router.post("/register")
+async def register(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    if db.query(User).filter(User.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Hash password
+    if db.query(User).filter(User.username == user.username).first():
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    db.query(PendingUser).filter(PendingUser.email == user.email).delete()
+    db.query(PendingUser).filter(PendingUser.username == user.username).delete()
+
     hashed_pwd = get_password_hash(user.password)
+    otp_val = generate_otp()
     
-    # Create User
-    new_user = User(email=user.email, hashed_password=hashed_pwd, full_name=user.full_name)
-    db.add(new_user)
+    new_pending = PendingUser(
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        hashed_password=hashed_pwd,
+        otp_code=otp_val,
+        expires_at=datetime.utcnow() + timedelta(minutes=3)
+    )
+    db.add(new_pending)
     db.commit()
-    db.refresh(new_user)
+
+    print(f"DEBUG: OTP for {user.email} is {otp_val}") 
+    background_tasks.add_task(send_otp_email, user.email, otp_val)
+    return {"message": "Verification code sent to email. Valid for 3 minutes."}
+
+@router.post("/verify-otp")
+def verify_otp(data: OTPVerify, db: Session = Depends(get_db)):
+    pending = db.query(PendingUser).filter(PendingUser.email == data.email, PendingUser.otp_code == data.otp_code).first()
+
+    if not pending:
+        raise HTTPException(status_code=400, detail="Invalid OTP code")
     
-    return new_user
+    if pending.expires_at < datetime.utcnow():
+        db.delete(pending)
+        db.commit()
+        raise HTTPException(status_code=400, detail="OTP expired. Please register again.")
+
+    new_user = User(
+        username=pending.username,
+        email=pending.email,
+        full_name=pending.full_name,
+        hashed_password=pending.hashed_password
+    )
+    db.add(new_user)
+    db.delete(pending)
+    db.commit()
+    return {"message": "Registration successful!", "status": "success"}
 
 @router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # OAuth2PasswordRequestForm expects 'username', but we use 'email' in our DB
-    # Frontends often send email in the 'username' field for OAuth2 flows.
-    user = db.query(User).filter(User.email == form_data.username).first()
+async def login(request: Request, db: Session = Depends(get_db)):
+    # This magic function handles BOTH JSON and Form-Data to avoid 422 errors!
+    content_type = request.headers.get("content-type", "")
     
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if "application/json" in content_type:
+        data = await request.json()
+        username = data.get("username")
+        password = data.get("password")
+    else:
+        # Fallback to form data (Standard OAuth2)
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password required")
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        user = db.query(User).filter(User.email == username).first()
+
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    access_token = create_access_token(data={"sub": user.email})
+    access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
 def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    # Simple verification (In prod we would decode token & check db)
-    # This just proves the route is protected
     from jose import jwt, JWTError
     from ..auth_utils import SECRET_KEY, ALGORITHM
-    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-         raise HTTPException(status_code=401, detail="Invalid token")
-         
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-        
+        username: str = payload.get("sub")
+        if username is None: raise HTTPException(status_code=401)
+    except JWTError: raise HTTPException(status_code=401)
+
+    user = db.query(User).filter(User.username == username).first()
     return user
+
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.query(PasswordReset).filter(PasswordReset.email == data.email).delete()
+    
+    otp_val = generate_otp()
+    reset_entry = PasswordReset(
+        email=data.email,
+        otp_code=otp_val,
+        expires_at=datetime.utcnow() + timedelta(minutes=5)
+    )
+    db.add(reset_entry)
+    db.commit()
+
+    background_tasks.add_task(send_otp_email, data.email, otp_val)
+    return {"message": "Password reset code sent to email."}
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    reset_record = db.query(PasswordReset).filter(
+        PasswordReset.email == data.email, 
+        PasswordReset.otp_code == data.otp_code
+    ).first()
+
+    if not reset_record or reset_record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired reset code")
+
+    user = db.query(User).filter(User.email == data.email).first()
+    if user:
+        user.hashed_password = get_password_hash(data.new_password)
+        db.delete(reset_record)
+        db.commit()
+        return {"message": "Password reset successfully!"}
+    
+    raise HTTPException(status_code=404, detail="User not found")
