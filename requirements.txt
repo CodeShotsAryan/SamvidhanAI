@@ -14,8 +14,8 @@ pandas
 fastembed
 psycopg2-binary
 sqlalchemy
-bcrypt==3.2.2
-passlib[bcrypt]
+bcrypt==3.2.0
+passlib
 python-jose[cryptography]
 email-validator
 
