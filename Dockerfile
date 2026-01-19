@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose port (internal)
-EXPOSE 8000
+# Change to server directory where the code lives
+WORKDIR /app/server
 
 # Command to run the application
 CMD ["sh", "-c", "python ingest.py && uvicorn main:app --host 0.0.0.0 --port 7860"]
