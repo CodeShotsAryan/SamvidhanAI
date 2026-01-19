@@ -42,9 +42,14 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Hash password
-    hashed_pwd = get_password_hash(user.password)
     
+    # Hash password (and catch obscure Passlib/Bcrypt errors)
+    try:
+        hashed_pwd = get_password_hash(user.password)
+    except Exception as e:
+        print(f"❌ HASHING ERROR: {e}")
+        raise HTTPException(status_code=500, detail=f"Crypto Error: {str(e)}")
+
     # Create User
     new_user = User(email=user.email, hashed_password=hashed_pwd, full_name=user.full_name)
     try:
