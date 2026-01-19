@@ -1,6 +1,50 @@
 # SamvidhanAI Backend API Documentation
 
-Base URL: `http://localhost:8000` (or Docker Service URL)
+Base URL (Cloud): `https://aryancse1-samvidhanai.hf.space`
+
+## 💻 Frontend Integration Guide (JavaScript/React)
+
+### 1. Call the Search API
+```javascript
+async function searchLegalQuery(query, domain = "CRIMINAL_LAW") {
+  const url = "https://aryancse1-samvidhanai.hf.space/search/";
+  
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      query: query,
+      domain: domain,
+      language: "en"
+    })
+  });
+
+  const data = await response.json();
+  console.log(data);
+  return data; // Returns { structured_answer: { green_layer: ... }, ... }
+}
+```
+
+### 2. Upload Document for Summarization
+```javascript
+async function summarizeDocument(fileObject) {
+  const url = "https://aryancse1-samvidhanai.hf.space/summarize/";
+  const formData = new FormData();
+  formData.append("file", fileObject); // 'fileObject' from <input type="file">
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData // No headers needed, browser sets multipart automatically
+  });
+
+  const data = await response.json();
+  return data;
+}
+```
+
+---
 
 ## 1. Legal Search (Core RAG)
 **Endpoint:** `POST /search/`

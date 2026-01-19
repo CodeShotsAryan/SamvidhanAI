@@ -723,3 +723,4 @@ INFO:     127.0.0.1:49016 - "POST /search/ HTTP/1.1" 200 OK
 incorrect startxref pointer(1)
 parsing for Object Streams
 INFO:     127.0.0.1:49018 - "POST /summarize/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51570 - "GET / HTTP/1.1" 200 OK
