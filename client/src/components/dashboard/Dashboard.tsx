@@ -15,14 +15,14 @@ import {
     PromptInputTools,
     PromptInputAttachments,
     PromptInputAttachment,
-} from '../components/ai-elements/prompt-input';
+} from '../ai-elements/prompt-input';
 
 import {
     Message,
     MessageContent,
-} from '../components/ai-elements/message';
+} from '../ai-elements/message';
 
-import { Shimmer } from '../components/ai-elements/shimmer';
+import { Shimmer } from '../ai-elements/shimmer';
 
 interface SDKMessage {
     id: string;

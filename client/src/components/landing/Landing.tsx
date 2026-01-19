@@ -157,7 +157,7 @@ const LandingPage: React.FC = () => {
               Advanced Retrieval-Augmented Generation framework providing precise, context-aware answers to complex legal queries regarding Indian penal codes and regulatory statutes.
             </motion.p>
             <motion.div variants={fadeIn}>
-              <button className="px-7 py-3 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded" onClick={() => router.push('/dashboard')}>
+              <button className="px-7 py-3 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded" onClick={() => router.push('/auth/register')}>
                 Get started
               </button>
             </motion.div>
