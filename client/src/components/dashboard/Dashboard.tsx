@@ -1,7 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp } from 'lucide-react';
+import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { API_ENDPOINTS } from '@/src/lib/config';
 import {
     PromptInput,
     PromptInputTextarea,
@@ -36,6 +39,13 @@ interface Conversation {
     title: string;
     date: string;
     messages: SDKMessage[];
+}
+
+interface UserData {
+    id: number;
+    username: string;
+    email: string;
+    full_name?: string;
 }
 
 const LEGAL_DOMAINS = [
@@ -164,6 +174,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
 }
 
 export default function Dashboard() {
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
     const [conversations, setConversations] = useState<Conversation[]>([
@@ -178,6 +189,52 @@ export default function Dashboard() {
     const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; size: number }[]>([]);
+    const [user, setUser] = useState<UserData | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
+    // Check authentication and fetch user data
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                router.push('/auth/login');
+                return;
+            }
+
+            try {
+                const response = await axios.get(API_ENDPOINTS.auth.me, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+                setUser(response.data);
+                setAuthLoading(false);
+            } catch (error) {
+                console.error('Auth error:', error);
+                localStorage.removeItem('token');
+                router.push('/auth/login');
+            }
+        };
+
+        checkAuth();
+    }, [router]);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        router.push('/auth/login');
+    };
+
+    const getUserInitials = () => {
+        if (!user) return 'U';
+        if (user.full_name) {
+            const names = user.full_name.split(' ');
+            if (names.length >= 2) {
+                return `${names[0][0]}${names[1][0]}`.toUpperCase();
+            }
+            return user.full_name[0].toUpperCase();
+        }
+        return user.username[0].toUpperCase();
+    };
 
     useEffect(() => {
         setIsGenerating(isLoading);
@@ -304,6 +361,18 @@ export default function Dashboard() {
         setSelectedConversation(id);
     };
 
+    // Show loading while checking auth
+    if (authLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-white">
+                <div className="text-center">
+                    <Scale className="w-12 h-12 text-black mx-auto mb-4 animate-pulse" />
+                    <p className="text-zinc-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex h-screen bg-white text-black overflow-hidden">
             <aside
@@ -359,9 +428,23 @@ export default function Dashboard() {
                 </div>
 
                 <div className="p-3 border-t border-zinc-800 min-w-[16rem]">
-                    <button className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-white transition-opacity duration-200 cursor-pointer text-sm">
-                        <User className="w-4 h-4" />
-                        <span className="font-medium">Settings</span>
+                    <div className="flex items-center gap-3 p-2.5 rounded-lg text-zinc-300 mb-2">
+                        <div className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-semibold text-sm">
+                            {getUserInitials()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-white truncate">
+                                {user?.full_name || user?.username || 'User'}
+                            </div>
+                            <div className="text-xs text-zinc-400 truncate">{user?.email}</div>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-white transition-opacity duration-200 cursor-pointer text-sm"
+                    >
+                        <LogOut className="w-4 h-4" />
+                        <span className="font-medium">Logout</span>
                     </button>
                 </div>
             </aside>
@@ -405,7 +488,7 @@ export default function Dashboard() {
                         </button>
                         <button className="flex items-center gap-2 p-1.5 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer">
                             <div className="w-7 h-7 bg-black text-white rounded-full flex items-center justify-center font-semibold text-xs">
-                                SB
+                                {getUserInitials()}
                             </div>
                         </button>
                     </div>

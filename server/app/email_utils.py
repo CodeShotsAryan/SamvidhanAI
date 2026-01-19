@@ -9,11 +9,14 @@ SMTP_PORT = 587
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASS = os.getenv("SMTP_PASS")
 
+
 def send_otp_email(target_email: str, otp: str):
+    """Send OTP email - non-blocking, won't crash if SMTP fails"""
     print(f"📧 Attempting to send OTP to {target_email} via SMTP...")
-    
+
     if not SMTP_USER or not SMTP_PASS:
-        print("❌ SMTP credentials missing in .env")
+        print(f"⚠️  SMTP credentials missing in .env - OTP will only print to console")
+        print(f"DEBUG: OTP for {target_email} is {otp}")
         return
 
     try:
@@ -22,7 +25,7 @@ def send_otp_email(target_email: str, otp: str):
         msg["From"] = SMTP_USER
         msg["To"] = target_email
         msg["Subject"] = "SamvidhanAI - Your Verification Code"
-        
+
         body = f"Your OTP code is: {otp}. It expires in 3 minutes."
         msg.attach(MIMEText(body, "plain"))
 
@@ -32,10 +35,12 @@ def send_otp_email(target_email: str, otp: str):
         server.login(SMTP_USER, SMTP_PASS)
         server.send_message(msg)
         server.quit()
-        
+
         print(f"✅ OTP sent successfully to {target_email}")
     except Exception as e:
         print(f"❌ SMTP ERROR: {e}")
+        print(f"DEBUG: OTP for {target_email} is {otp}")
+
 
 def generate_otp():
     return str(random.randint(100000, 999999))

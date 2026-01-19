@@ -8,9 +8,10 @@ import { Loader2, Lock, Mail, Scale } from "lucide-react";
 import Input from "./Input";
 import AuthImageSlider from "./AuthImageSlider";
 import Image from "next/image";
+import { API_ENDPOINTS } from "@/src/lib/config";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -22,20 +23,21 @@ const Login = () => {
     setError("");
 
     try {
-      const response = await axios.post("http://localhost:3000/api/auth/login", {
-        email,
+      const response = await axios.post(API_ENDPOINTS.auth.login, {
+        username,
         password,
       });
 
       if (response.data.token) {
         localStorage.setItem("token", response.data.token);
-      }
 
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 500);
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 500);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid email or password");
+      const errorMessage = err.response?.data?.detail || "Invalid username or password";
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -60,13 +62,13 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
-              label="Email Address"
-              placeholder="name@company.com"
-              type="email"
+              label="Username or Email"
+              placeholder="username or email@company.com"
+              type="text"
               required
               icon={<Mail size={18} />}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
 
             <Input

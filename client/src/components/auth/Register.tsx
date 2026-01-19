@@ -8,9 +8,11 @@ import { useRouter } from "next/navigation";
 import Input from "./Input";
 import AuthImageSlider from "./AuthImageSlider";
 import Image from "next/image";
+import { API_ENDPOINTS } from "@/src/lib/config";
 
 const Register = () => {
-    const [name, setName] = useState("");
+    const [username, setUsername] = useState("");
+    const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -23,10 +25,11 @@ const Register = () => {
         setError("");
 
         try {
-            await axios.post("http://localhost:3000/api/auth/register", {
-                name,
+            await axios.post(API_ENDPOINTS.auth.register, {
+                username,
                 email,
                 password,
+                full_name: fullName,
             });
 
             // Store email in sessionStorage for the verification page
@@ -35,7 +38,7 @@ const Register = () => {
             // Redirect to verification page
             router.push("/auth/verify-email");
         } catch (err: any) {
-            setError(err.response?.data?.message || "Registration failed. Please try again.");
+            setError(err.response?.data?.detail || "Registration failed. Please try again.");
             setLoading(false);
         }
     };
@@ -60,13 +63,23 @@ const Register = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <Input
+                            label="Username"
+                            placeholder="johndoe"
+                            type="text"
+                            required
+                            icon={<User size={18} />}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+
+                        <Input
                             label="Full Name"
                             placeholder="John Doe"
                             type="text"
                             required
                             icon={<User size={18} />}
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
                         />
 
                         <Input

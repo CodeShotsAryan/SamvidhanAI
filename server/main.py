@@ -9,7 +9,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="SamvidhanAI Server",
     description="Advanced RAG Framework for Indian Legal Code",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORSMiddleware
@@ -21,13 +21,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def read_root():
-    return {"message": "SamvidhanAI Server is running. RAG System Ready."}
+    return {"message": "SamvidhanAI Server is running. RAG System Ready with Pinecone."}
+
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 # Include routers
 app.include_router(search.router)

@@ -11,6 +11,7 @@ import {
     InputOTPSlot,
 } from "@/components/ui/input-otp";
 import Image from "next/image";
+import { API_ENDPOINTS } from "@/src/lib/config";
 
 const EmailVerification = () => {
     const [otp, setOtp] = useState("");
@@ -41,8 +42,8 @@ const EmailVerification = () => {
         setError("");
 
         try {
-            await axios.post("http://localhost:3000/api/auth/verify-email", {
-                code: otp,
+            await axios.post(API_ENDPOINTS.auth.verifyEmail, {
+                otp_code: otp,
                 email: email,
             });
 
@@ -54,7 +55,7 @@ const EmailVerification = () => {
                 router.push("/auth/login");
             }, 2000);
         } catch (err: any) {
-            setError(err.response?.data?.message || "Invalid verification code. Please try again.");
+            setError(err.response?.data?.detail || "Invalid verification code. Please try again.");
             setLoading(false);
         }
     };
@@ -64,13 +65,13 @@ const EmailVerification = () => {
         setError("");
 
         try {
-            await axios.post("http://localhost:3000/api/auth/resend-verification", {
+            await axios.post(API_ENDPOINTS.auth.resendVerification, {
                 email: email,
             });
             setError(""); // Clear any previous errors
             // You could show a success message here if you want
         } catch (err: any) {
-            setError(err.response?.data?.message || "Failed to resend code. Please try again.");
+            setError(err.response?.data?.detail || "Failed to resend code. Please try again.");
         } finally {
             setLoading(false);
         }
