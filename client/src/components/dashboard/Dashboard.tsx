@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut, MessageCircleCode, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut, MessageCircleCode, Trash2, ChevronDown, ChevronUp, Volume2, VolumeX } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -200,12 +200,56 @@ export default function Dashboard() {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
     const [showSources, setShowSources] = useState<Record<string, boolean>>({});
+    const [readingMessageId, setReadingMessageId] = useState<string | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // Cleanup speech when component unmounts or user navigates away
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                // Stop speech when tab becomes hidden
+                window.speechSynthesis.cancel();
+                setReadingMessageId(null);
+            }
+        };
+
+        const handleBeforeUnload = () => {
+            // Stop speech when page is about to unload
+            window.speechSynthesis.cancel();
+        };
+
+        // Add event listeners
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        // Cleanup on unmount
+        return () => {
+            window.speechSynthesis.cancel();
+            setReadingMessageId(null);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
+    // Load voices for text-to-speech
+    useEffect(() => {
+        // Load voices on mount
+        const loadVoices = () => {
+            window.speechSynthesis.getVoices();
+        };
+
+        loadVoices();
+
+        // Some browsers need this event
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
+    }, []);
 
     // Check authentication and fetch user data
     useEffect(() => {
@@ -484,6 +528,10 @@ export default function Dashboard() {
 
 
     const handleNewQuery = () => {
+        // Stop any ongoing speech
+        window.speechSynthesis.cancel();
+        setReadingMessageId(null);
+
         setSelectedConversation(null);
         setMessages([]);
         setSelectedDomain(null);
@@ -493,6 +541,10 @@ export default function Dashboard() {
     };
 
     const handleConversationClick = (id: number) => {
+        // Stop any ongoing speech
+        window.speechSynthesis.cancel();
+        setReadingMessageId(null);
+
         setSelectedConversation(id);
         loadConversation(id);
         // Close sidebar on mobile after selecting conversation
@@ -532,6 +584,103 @@ export default function Dashboard() {
             setDeleteModalOpen(false);
             setConversationToDelete(null);
         }
+    };
+
+    // Text-to-Speech function
+    const handleReadAloud = (messageId: string, content: string) => {
+        // Stop any ongoing speech
+        if (readingMessageId === messageId) {
+            window.speechSynthesis.cancel();
+            setReadingMessageId(null);
+            return;
+        }
+
+        // Cancel any previous speech
+        window.speechSynthesis.cancel();
+
+        // Extract text from JSON if needed
+        let textToRead = content;
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed.casual) {
+                textToRead = parsed.casual;
+            } else if (parsed.law || parsed.examples || parsed.simple_answer) {
+                textToRead = `
+                    ${parsed.law ? 'The Law: ' + parsed.law : ''}
+                    ${parsed.examples ? ' Examples: ' + parsed.examples : ''}
+                    ${parsed.simple_answer ? ' Simple Explanation: ' + parsed.simple_answer : ''}
+                `.trim();
+            }
+        } catch (e) {
+            // Use content as is
+        }
+
+        // Remove markdown formatting for better speech
+        textToRead = textToRead
+            .replace(/\*\*/g, '')  // Remove bold
+            .replace(/\*/g, '')    // Remove italic
+            .replace(/#{1,6}\s/g, '') // Remove headers
+            .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove links
+            .replace(/`/g, '')     // Remove code blocks
+            .replace(/\n+/g, '. ') // Replace newlines with pauses
+            .replace(/\s+/g, ' ')  // Clean up extra spaces
+            .trim();
+
+        const utterance = new SpeechSynthesisUtterance(textToRead);
+
+        // Try to get a better voice
+        const voices = window.speechSynthesis.getVoices();
+
+        // Prefer these voices in order (more natural sounding)
+        const preferredVoices = [
+            'Google UK English Female',
+            'Google UK English Male',
+            'Google US English',
+            'Microsoft Zira - English (United States)',
+            'Microsoft David - English (United States)',
+            'Samantha',
+            'Alex',
+            'Karen'
+        ];
+
+        let selectedVoice = null;
+        for (const preferred of preferredVoices) {
+            selectedVoice = voices.find(voice => voice.name.includes(preferred));
+            if (selectedVoice) break;
+        }
+
+        // Fallback to any English voice
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice =>
+                voice.lang.startsWith('en') && voice.name.toLowerCase().includes('female')
+            ) || voices.find(voice => voice.lang.startsWith('en'));
+        }
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+
+        utterance.lang = 'en-US';  // US English for better clarity
+        utterance.rate = 0.85;     // Slower for better comprehension
+        utterance.pitch = 1.0;     // Natural pitch
+        utterance.volume = 1.0;    // Full volume
+
+        utterance.onstart = () => {
+            setReadingMessageId(messageId);
+        };
+
+        utterance.onend = () => {
+            setReadingMessageId(null);
+        };
+
+        utterance.onerror = () => {
+            setReadingMessageId(null);
+        };
+
+        // Small delay to ensure voices are loaded
+        setTimeout(() => {
+            window.speechSynthesis.speak(utterance);
+        }, 100);
     };
 
     // Show loading while checking auth
@@ -811,6 +960,32 @@ export default function Dashboard() {
                                                                     return m.content;
                                                                 }
                                                             })()}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Read Aloud Button - Only for assistant messages */}
+                                                    {m.role === 'assistant' && (
+                                                        <div className="mt-4 flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => handleReadAloud(m.id, m.content)}
+                                                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${readingMessageId === m.id
+                                                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                                                    : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                                                                    }`}
+                                                                aria-label={readingMessageId === m.id ? 'Stop reading' : 'Read aloud'}
+                                                            >
+                                                                {readingMessageId === m.id ? (
+                                                                    <>
+                                                                        <VolumeX className="w-4 h-4" />
+                                                                        Stop Reading
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Volume2 className="w-4 h-4" />
+                                                                        Read Aloud
+                                                                    </>
+                                                                )}
+                                                            </button>
                                                         </div>
                                                     )}
 
