@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, Book, MessageSquare, FileText, ExternalLink, Volume2 } from 'lucide-react';
+import { Scale, Book, MessageSquare, FileText, ExternalLink, Volume2, Square } from 'lucide-react';
 import { renderMarkdown } from '@/src/lib/markdown';
 import { Message, MessageContent } from '../ai-elements/message';
 import { Shimmer } from '../ai-elements/shimmer';
@@ -122,10 +122,10 @@ export default function MessageList({ messages, isLoading, messagesEndRef, onPla
                                     <div className="mt-2 flex items-center justify-end">
                                         <button
                                             onClick={() => onPlayAudio(m.content, m.id)}
-                                            className={`p-1.5 rounded-full hover:bg-zinc-100 transition-colors ${playingMessageId === m.id ? 'text-indigo-600' : 'text-zinc-400'}`}
-                                            title="Listen to this"
+                                            className={`p-2 rounded-full hover:bg-zinc-100 transition-colors ${playingMessageId === m.id ? 'text-red-500 bg-red-50' : 'text-zinc-400'}`}
+                                            title={playingMessageId === m.id ? "Stop" : "Listen to this"}
                                         >
-                                            <Volume2 className="w-4 h-4" />
+                                            {playingMessageId === m.id ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />}
                                         </button>
                                     </div>
                                 )}

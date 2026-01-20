@@ -145,15 +145,15 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const blob = new Blob(chunksRef.current, { type: 'audio/wav' });
+                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
                     const formData = new FormData();
-                    formData.append('file', blob, 'recording.wav');
+                    formData.append('file', blob, 'recording.webm');
 
                     try {
                         const token = localStorage.getItem('token');
                         controller.textInput.setInput('Sanket is Listening...'); // Feedback
                         const response = await axios.post(
-                            '/api/speech/process-stt',
+                            API_ENDPOINTS.speech.stt,
                             formData,
                             {
                                 headers: {
@@ -242,33 +242,66 @@ export default function Dashboard() {
 
     // Audio State
     const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+    const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
     const playAudio = async (text: string, messageId: string) => {
         if (playingMessageId === messageId) {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
             setPlayingMessageId(null);
             return;
+        }
+
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
         }
 
         try {
             setPlayingMessageId(messageId);
             const token = localStorage.getItem('token');
-            const cleanText = text.replace(/[*#_`]/g, '');
 
+            let textToRead = text;
+            try {
+                const parsed = JSON.parse(text);
+                // Extract the most relevant part for speech
+                if (parsed.simple_answer) textToRead = parsed.simple_answer;
+                else if (parsed.simpleanswer) textToRead = parsed.simpleanswer;
+                else if (parsed.casual) textToRead = parsed.casual;
+                else if (parsed.law) textToRead = parsed.law;
+            } catch (e) {
+                // Not JSON, use original text
+            }
+
+            // Clean markdown and citations like [1], [2]
+            const cleanText = textToRead.replace(/[*#_`]/g, '').replace(/\[\d+\]/g, '');
+
+            // Truncate to 500 characters (Sarvam API Limit)
+            const finalPayload = cleanText.length > 490 ? cleanText.substring(0, 490) + "..." : cleanText;
+
+            // Sending request to Sarvam TTS
             const response = await axios.post(
-                '/api/speech/process-tts',
-                { text: cleanText },
+                API_ENDPOINTS.speech.tts,
+                { text: finalPayload },
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
             );
 
             const audio = new Audio(`data:audio/wav;base64,${response.data.audio}`);
-            audio.onended = () => setPlayingMessageId(null);
+            audioRef.current = audio;
+            audio.onended = () => {
+                setPlayingMessageId(null);
+                audioRef.current = null;
+            };
             audio.play();
 
         } catch (error) {
             console.error('TTS Error:', error);
             setPlayingMessageId(null);
+            audioRef.current = null;
         }
     };
 

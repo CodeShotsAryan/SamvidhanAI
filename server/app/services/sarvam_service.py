@@ -51,7 +51,7 @@ class SarvamService:
         
         # Determine if it's a file path or bytes. Assuming bytes from UploadFile
         files = {
-            'file': ('audio.wav', audio_file_content, 'audio/wav')
+            'file': ('audio.webm', audio_file_content, 'audio/webm')
         }
         data = {
             "model": "saarika:v2", # Updated according to best practice, trying v2 first as v2.5 might be strictly language specific or newer. 
