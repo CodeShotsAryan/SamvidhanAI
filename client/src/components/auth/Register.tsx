@@ -32,10 +32,8 @@ const Register = () => {
                 full_name: fullName,
             });
 
-            // Store email in sessionStorage for the verification page
             sessionStorage.setItem('verification-email', email);
 
-            // Redirect to verification page
             router.push("/auth/verify-email");
         } catch (err: any) {
             setError(err.response?.data?.detail || "Registration failed. Please try again.");
@@ -130,7 +128,6 @@ const Register = () => {
                 </div>
             </div>
 
-            
                 <AuthImageSlider />
           
         </div>

@@ -11,7 +11,6 @@ SMTP_PASS = os.getenv("SMTP_PASS")
 
 
 def send_otp_email(target_email: str, otp: str):
-    """Send OTP email - non-blocking, won't crash if SMTP fails"""
     print(f"📧 Attempting to send OTP to {target_email} via SMTP...")
 
     if not SMTP_USER or not SMTP_PASS:
@@ -20,7 +19,6 @@ def send_otp_email(target_email: str, otp: str):
         return
 
     try:
-        # Create message
         msg = MIMEMultipart()
         msg["From"] = SMTP_USER
         msg["To"] = target_email
@@ -29,7 +27,6 @@ def send_otp_email(target_email: str, otp: str):
         body = f"Your OTP code is: {otp}. It expires in 3 minutes."
         msg.attach(MIMEText(body, "plain"))
 
-        # Connect and send
         server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
         server.login(SMTP_USER, SMTP_PASS)

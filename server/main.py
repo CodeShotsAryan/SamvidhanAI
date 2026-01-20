@@ -4,7 +4,6 @@ from app.routers import search, summarize, compare, auth, conversations, chat
 from app.database import engine, Base, SessionLocal
 from app.models.conversation import LegalDomain
 
-# Create Tables (Auto-Migration)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -13,7 +12,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,10 +23,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 def seed_legal_domains():
-    """Seed legal domains on startup if they don't exist"""
     db = SessionLocal()
     try:
-        # Check if domains already exist
         existing = db.query(LegalDomain).first()
         if existing:
             print("✅ Legal domains already seeded")
@@ -100,7 +96,6 @@ def health_check():
     return {"status": "ok"}
 
 
-# Include routers
 app.include_router(search.router)
 app.include_router(summarize.router)
 app.include_router(compare.router)

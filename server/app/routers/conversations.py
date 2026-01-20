@@ -18,9 +18,8 @@ router = APIRouter(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-# Pydantic Schemas
 class MessageCreate(BaseModel):
-    role: str  # 'user' or 'assistant'
+    role: str
     content: str
     sources: Optional[List[dict]] = None
 
@@ -75,7 +74,6 @@ class LegalDomainResponse(BaseModel):
         from_attributes = True
 
 
-# Helper function to get current user from token
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ):
@@ -97,14 +95,12 @@ def get_current_user(
     return user
 
 
-# --- Conversation Endpoints ---
 
 
 @router.get("", response_model=List[ConversationResponse])
 def get_user_conversations(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
-    """Get all conversations for the current user"""
     conversations = (
         db.query(Conversation)
         .filter(Conversation.user_id == current_user.id)
@@ -112,7 +108,6 @@ def get_user_conversations(
         .all()
     )
 
-    # Add message count to each conversation
     result = []
     for conv in conversations:
         conv_dict = {
@@ -134,7 +129,6 @@ def create_conversation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Create a new conversation"""
     new_conversation = Conversation(
         user_id=current_user.id,
         title=conversation.title,
@@ -160,7 +154,6 @@ def get_conversation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get a specific conversation with all messages"""
     conversation = (
         db.query(Conversation)
         .filter(
@@ -182,8 +175,6 @@ def add_message(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Add a message to a conversation"""
-    # Verify conversation belongs to user
     conversation = (
         db.query(Conversation)
         .filter(
@@ -195,7 +186,6 @@ def add_message(
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # Create new message
     new_message = Message(
         conversation_id=conversation_id,
         role=message.role,
@@ -204,7 +194,6 @@ def add_message(
     )
     db.add(new_message)
 
-    # Update conversation's updated_at timestamp
     conversation.updated_at = datetime.utcnow()
 
     db.commit()
@@ -219,7 +208,6 @@ def delete_conversation(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete a conversation"""
     conversation = (
         db.query(Conversation)
         .filter(
@@ -237,11 +225,9 @@ def delete_conversation(
     return {"message": "Conversation deleted successfully"}
 
 
-# --- Legal Domain Endpoints ---
 
 
 @router.get("/domains/list", response_model=List[LegalDomainResponse])
 def get_legal_domains(db: Session = Depends(get_db)):
-    """Get all available legal domains"""
     domains = db.query(LegalDomain).all()
     return domains

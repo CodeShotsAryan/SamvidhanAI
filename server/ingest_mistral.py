@@ -1,7 +1,3 @@
-"""
-Complete ingestion script for legal documents using Mistral embeddings.
-Processes all PDFs in server/data/acts/ and uploads to Pinecone with proper metadata.
-"""
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -15,7 +11,6 @@ import glob
 
 load_dotenv()
 
-# Verify API keys
 print("[*] Checking API Keys...")
 mistral_key = os.environ.get("MISTRAL_API_KEY")
 pinecone_key = os.environ.get("PINECONE_API_KEY")
@@ -28,25 +23,20 @@ if not pinecone_key:
 print(f"[+] Mistral API Key: {mistral_key[:10]}...")
 print(f"[+] Pinecone API Key: {pinecone_key[:10]}...")
 
-# Initialize Mistral embeddings (1024 dimensions)
 print("\n[*] Initializing Mistral Embeddings...")
 embeddings = MistralAIEmbeddings(model="mistral-embed", mistral_api_key=mistral_key)
 
-# Initialize Pinecone
 print("[*] Connecting to Pinecone...")
 pc = Pinecone(api_key=pinecone_key)
 index_name = os.environ.get("PINECONE_INDEX", "samvidhan")
 index = pc.Index(index_name)
 
-# Create vector store
 vector_store = PineconeVectorStore(embedding=embeddings, index=index)
 
-# Text splitter configuration (matching your Gita project)
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=900, chunk_overlap=10, separators=["\n\n", "\n", " ", ""]
 )
 
-# Find all PDF files
 pdf_pattern = "./data/acts/**/*.pdf"
 pdf_files = glob.glob(pdf_pattern, recursive=True)
 
@@ -58,20 +48,16 @@ print(f"\n[*] Found {len(pdf_files)} PDF files to process:")
 for pdf in pdf_files:
     print(f"  - {pdf}")
 
-# Process each PDF
 total_chunks = 0
 all_documents = []
 
 for pdf_path in pdf_files:
     print(f"\n[*] Processing: {pdf_path}")
 
-    # Extract metadata from path
-    # Example: ./data/acts/criminal_law/Bharatiya Nyaya Sanhita.pdf
     parts = pdf_path.replace("\\", "/").split("/")
     domain = parts[-2] if len(parts) >= 2 else "general"
     filename = parts[-1].replace(".pdf", "")
 
-    # Map domain to user-friendly names
     domain_map = {
         "criminal_law": "Criminal Law",
         "corporate_law": "Corporate & Commercial Law",
@@ -80,14 +66,11 @@ for pdf_path in pdf_files:
     domain_name = domain_map.get(domain, domain.replace("_", " ").title())
 
     try:
-        # Load PDF
         loader = PyPDFLoader(pdf_path)
         documents = loader.load()
 
-        # Split into chunks
         chunks = text_splitter.split_documents(documents)
 
-        # Add metadata to each chunk
         for i, chunk in enumerate(chunks):
             chunk.metadata.update(
                 {
@@ -99,10 +82,8 @@ for pdf_path in pdf_files:
                 }
             )
 
-            # Try to extract section number from content
             content_lower = chunk.page_content.lower()
             if "section" in content_lower:
-                # Simple extraction - can be improved
                 import re
 
                 section_match = re.search(r"section\s+(\d+[a-z]?)", content_lower)
@@ -123,11 +104,9 @@ if total_chunks == 0:
     print("[!] No chunks to upload. Exiting.")
     exit(1)
 
-# Generate UUIDs for each chunk
 print("\n[*] Generating UUIDs...")
 uuids = [str(uuid4()) for _ in range(len(all_documents))]
 
-# Upload to Pinecone in batches
 print("\n[*] Uploading to Pinecone...")
 batch_size = 100
 for i in range(0, len(all_documents), batch_size):
@@ -142,7 +121,6 @@ for i in range(0, len(all_documents), batch_size):
     except Exception as e:
         print(f"  [!] Error uploading batch: {str(e)}")
 
-# Verify upload
 print("\n[*] Verifying upload...")
 stats = index.describe_index_stats()
 print(f"  [+] Total vectors in Pinecone: {stats.total_vector_count}")

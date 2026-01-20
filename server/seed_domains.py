@@ -1,34 +1,26 @@
-"""
-Seed script to populate legal domains in the database
-Run this once after creating the database tables
-"""
 
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.user import User  # Import to register the model
+from app.models.user import User
 from app.models.conversation import Conversation, Message, LegalDomain
 from app.database import Base
 
-# Use localhost for local execution, postgres for Docker
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://admin:admin@localhost:5432/samvidhan_db"
 )
 if "postgres:" in DATABASE_URL:
-    # Running locally, replace postgres with localhost
     DATABASE_URL = DATABASE_URL.replace("@postgres:", "@localhost:")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create all tables
 Base.metadata.create_all(bind=engine)
 
 
 def seed_legal_domains():
     db = SessionLocal()
 
-    # Check if domains already exist
     existing = db.query(LegalDomain).first()
     if existing:
         print("Legal domains already seeded!")

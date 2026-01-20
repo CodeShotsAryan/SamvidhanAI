@@ -61,13 +61,10 @@ interface UserData {
 
 const LEGAL_DOMAINS = [
     'Criminal Law',
-    // 'Constitutional Law',
-    // 'Civil Law',
+    
     'Corporate & Commercial Law',
     'Cyber & IT Law',
-    // 'Environmental Law',
-    // 'Labour & Employment Law',
-    // 'Taxation Law',
+    
 ];
 
 const DOMAIN_ICONS: Record<string, any> = {
@@ -117,7 +114,6 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
     const controller = usePromptInputController();
     const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
 
-    // Load from localStorage on mount and set the controller's value
     useEffect(() => {
         if (!hasLoadedFromStorage) {
             const savedPrompt = localStorage.getItem('samvidhan-draft-prompt');
@@ -128,7 +124,6 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
         }
     }, [hasLoadedFromStorage, controller]);
 
-    // Save to localStorage whenever text changes
     useEffect(() => {
         if (hasLoadedFromStorage) {
             const text = controller.textInput.value;
@@ -202,12 +197,10 @@ export default function Dashboard() {
     const [showSources, setShowSources] = useState<Record<string, boolean>>({});
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-    // Auto-scroll to bottom when messages change
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Check authentication and fetch user data
     useEffect(() => {
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
@@ -224,7 +217,7 @@ export default function Dashboard() {
                 });
                 setUser(response.data);
                 setAuthLoading(false);
-                // Fetch conversations after auth succeeds
+                
                 fetchConversations(token);
             } catch (error) {
                 console.error('Auth error:', error);
@@ -236,7 +229,6 @@ export default function Dashboard() {
         checkAuth();
     }, [router]);
 
-    // Fetch user's conversations from backend
     const fetchConversations = async (token?: string) => {
         const authToken = token || localStorage.getItem('token');
         if (!authToken) return;
@@ -254,7 +246,6 @@ export default function Dashboard() {
         }
     };
 
-    // Create new conversation in backend
     const createConversation = async (title: string) => {
         const token = localStorage.getItem('token');
         if (!token) return null;
@@ -278,7 +269,6 @@ export default function Dashboard() {
         }
     };
 
-    // Save message to backend
     const saveMessage = async (conversationId: number, role: string, content: string, sources?: any[]) => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -294,7 +284,6 @@ export default function Dashboard() {
         }
     };
 
-    // Load conversation messages from backend
     const loadConversation = async (conversationId: number) => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -361,10 +350,8 @@ export default function Dashboard() {
         setMessages(newMessages);
         setIsLoading(true);
 
-        // Save user message to backend
         await saveMessage(convId, 'user', suggestion);
 
-        // Call RAG API for AI response
         try {
             const token = localStorage.getItem('token');
             const response = await axios.post(
@@ -389,10 +376,8 @@ export default function Dashboard() {
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            // Save assistant message to backend
             await saveMessage(convId!, 'assistant', aiMsg.content, response.data.sources);
 
-            // Refresh conversations list
             fetchConversations();
         } catch (error) {
             console.error('Error getting AI response:', error);
@@ -412,7 +397,6 @@ export default function Dashboard() {
 
         let convId = selectedConversation;
 
-        // Create new conversation if none selected
         if (convId === null) {
             convId = await createConversation(message.text);
             if (!convId) return;
@@ -436,10 +420,8 @@ export default function Dashboard() {
         setMessages(newMessages);
         setIsLoading(true);
 
-        // Save user message to backend
         await saveMessage(convId, 'user', message.text);
 
-        // Call RAG API for AI response
         try {
             const token = localStorage.getItem('token');
             const response = await axios.post(
@@ -463,10 +445,8 @@ export default function Dashboard() {
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            // Save assistant message to backend
             await saveMessage(convId!, 'assistant', aiMsg.content, response.data.sources);
 
-            // Refresh conversations list
             fetchConversations();
         } catch (error) {
             console.error('Error getting AI response:', error);
@@ -481,8 +461,6 @@ export default function Dashboard() {
         }
     };
 
-
-
     const handleNewQuery = () => {
         setSelectedConversation(null);
         setMessages([]);
@@ -495,7 +473,7 @@ export default function Dashboard() {
     const handleConversationClick = (id: number) => {
         setSelectedConversation(id);
         loadConversation(id);
-        // Close sidebar on mobile after selecting conversation
+        
         if (window.innerWidth < 1024) {
             setSidebarOpen(false);
         }
@@ -518,10 +496,8 @@ export default function Dashboard() {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            // Remove from local state
             setConversations(prev => prev.filter(conv => conv.id !== conversationToDelete));
 
-            // If deleted conversation was selected, clear selection
             if (selectedConversation === conversationToDelete) {
                 setSelectedConversation(null);
                 setMessages([]);
@@ -534,7 +510,6 @@ export default function Dashboard() {
         }
     };
 
-    // Show loading while checking auth
     if (authLoading) {
         return (
             <div className="flex h-screen items-center justify-center bg-white">

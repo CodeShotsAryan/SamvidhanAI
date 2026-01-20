@@ -17,7 +17,6 @@ router = APIRouter(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
-# Pydantic Schemas
 class UserCreate(BaseModel):
     username: str
     email: EmailStr
@@ -60,7 +59,6 @@ class UserResponse(BaseModel):
         orm_mode = True
 
 
-# --- Endpoints ---
 
 
 @router.post("/register")
@@ -124,13 +122,11 @@ def verify_otp(data: OTPVerify, db: Session = Depends(get_db)):
     return {"message": "Registration successful!", "status": "success"}
 
 
-# Alias endpoint for frontend compatibility
 @router.post("/verify-email")
 def verify_email(data: OTPVerify, db: Session = Depends(get_db)):
     return verify_otp(data, db)
 
 
-# Resend verification code
 class ResendVerification(BaseModel):
     email: EmailStr
 
@@ -148,7 +144,6 @@ async def resend_verification(
             status_code=404, detail="No pending registration found for this email"
         )
 
-    # Generate new OTP
     otp_val = generate_otp()
     pending.otp_code = otp_val
     pending.expires_at = datetime.utcnow() + timedelta(minutes=3)
@@ -161,7 +156,6 @@ async def resend_verification(
 
 @router.post("/login")
 async def login(request: Request, db: Session = Depends(get_db)):
-    # This magic function handles BOTH JSON and Form-Data to avoid 422 errors!
     content_type = request.headers.get("content-type", "")
 
     if "application/json" in content_type:
@@ -169,7 +163,6 @@ async def login(request: Request, db: Session = Depends(get_db)):
         username = data.get("username")
         password = data.get("password")
     else:
-        # Fallback to form data (Standard OAuth2)
         form = await request.form()
         username = form.get("username")
         password = form.get("password")
@@ -177,7 +170,6 @@ async def login(request: Request, db: Session = Depends(get_db)):
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password required")
 
-    # Check if user exists in pending_users (not verified)
     pending = (
         db.query(PendingUser)
         .filter((PendingUser.username == username) | (PendingUser.email == username))

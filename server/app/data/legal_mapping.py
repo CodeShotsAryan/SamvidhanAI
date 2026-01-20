@@ -1,5 +1,3 @@
-# Common mappings between Indian Penal Code (IPC) and Bharatiya Nyaya Sanhita (BNS)
-# This data drives the Interactive Clause Comparison feature.
 
 IPC_BNS_MAPPING = {
     "420": {
@@ -54,5 +52,4 @@ IPC_BNS_MAPPING = {
 
 
 def get_mapping(section_number: str) -> dict:
-    """Returns the mapping for a given IPC section number if it exists."""
     return IPC_BNS_MAPPING.get(section_number)

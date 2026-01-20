@@ -61,7 +61,7 @@ const ResetPasswordForm = () => {
 
     return (
         <div className="min-h-screen flex">
-            {/* Left side - Form */}
+            {}
             <div className="w-full md:w-1/2 bg-white px-6 py-10 flex flex-col justify-center">
                 <div className="w-full max-w-md mx-auto">
                     <Image src="/loogoo.png" alt="SamvidhanAI" width={180} height={48} className="object-contain mb-2" />
@@ -80,7 +80,7 @@ const ResetPasswordForm = () => {
                 </div>
             </div>
 
-            {/* Right side - Image Slider */}
+            {}
             <AuthImageSlider />
         </div>
     );

@@ -21,14 +21,12 @@ const EmailVerification = () => {
     const [email, setEmail] = useState("");
     const router = useRouter();
 
-    // Load email from sessionStorage on mount
     useEffect(() => {
         const storedEmail = sessionStorage.getItem('verification-email');
         if (storedEmail) {
             setEmail(storedEmail);
         } else {
-            // If no email found, redirect to register
-            // router.push('/auth/register');
+            
         }
     }, [router]);
 
@@ -48,7 +46,7 @@ const EmailVerification = () => {
             });
 
             setSuccess(true);
-            // Clear the stored email
+            
             sessionStorage.removeItem('verification-email');
 
             setTimeout(() => {
@@ -68,8 +66,8 @@ const EmailVerification = () => {
             await axios.post(API_ENDPOINTS.auth.resendVerification, {
                 email: email,
             });
-            setError(""); // Clear any previous errors
-            // You could show a success message here if you want
+            setError(""); 
+            
         } catch (err: any) {
             setError(err.response?.data?.detail || "Failed to resend code. Please try again.");
         } finally {

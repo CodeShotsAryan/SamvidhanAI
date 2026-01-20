@@ -40,7 +40,6 @@ class RAGService:
             self.chat_histories[session_id].clear()
 
     def classify_query(self, query: str) -> str:
-        """Use Groq to intelligently classify query intent"""
         classification_prompt = """You are a query classifier. Classify the user's query into ONE category only.
 
 Categories:

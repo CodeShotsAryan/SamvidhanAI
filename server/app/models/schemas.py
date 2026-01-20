@@ -3,20 +3,19 @@ from typing import List, Optional
 
 class SearchRequest(BaseModel):
     query: str
-    domain: Optional[str] = None  # "IT_LAW", "CRIMINAL_LAW", "CORPORATE_LAW"
+    domain: Optional[str] = None
 
 class LawCitation(BaseModel):
     id: str
-    source: str # Act Name
+    source: str
     section: str
     text: str
     url: Optional[str] = None
 
-# The "Green-Yellow-Red" Architecture
 class StructuredAnswer(BaseModel):
-    green_layer: str  # Statutory Law (The Truth)
-    yellow_layer: str # Case Law & Precedents
-    red_layer: str    # AI Simplification & Insight
+    green_layer: str
+    yellow_layer: str
+    red_layer: str
 
 class SearchResponse(BaseModel):
     structured_answer: StructuredAnswer

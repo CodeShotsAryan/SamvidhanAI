@@ -8,30 +8,23 @@ from pinecone import Pinecone
 from dotenv import load_dotenv
 from uuid import uuid4
 
-# Load environment variables
 load_dotenv()
 
-# Check keys
 print("Google API:", os.environ.get("GOOGLE_API_KEY"))
 print("Pinecone API:", os.environ.get("PINECONE_API_KEY"))
 
-# Define Paths
 BASE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
 
 def chunk_text_by_section(text: str, act_name: str, domain: str) -> List[Dict]:
-    """
-    Intelligent splitting by 'Section X' with size limits.
-    """
     pattern = r"(Section\s+\d+[A-Z]*)"
     splits = re.split(pattern, text)
     chunks = []
-    MAX_CHUNK_SIZE = 8000  # Keep well under 40KB metadata limit
+    MAX_CHUNK_SIZE = 8000
 
-    # Handle Preamble
     if splits[0].strip():
-        preamble_text = splits[0].strip()[:MAX_CHUNK_SIZE]  # Truncate if too long
+        preamble_text = splits[0].strip()[:MAX_CHUNK_SIZE]
         chunks.append(
             {
                 "text": preamble_text,
@@ -39,13 +32,11 @@ def chunk_text_by_section(text: str, act_name: str, domain: str) -> List[Dict]:
             }
         )
 
-    # Handle Sections
     for i in range(1, len(splits), 2):
         header = splits[i]
         body = splits[i + 1] if i + 1 < len(splits) else ""
         full_chunk = f"{header}\n{body}".strip()
 
-        # Truncate if too long
         if len(full_chunk) > MAX_CHUNK_SIZE:
             full_chunk = full_chunk[:MAX_CHUNK_SIZE] + "... [truncated]"
 
@@ -63,19 +54,17 @@ def chunk_text_by_section(text: str, act_name: str, domain: str) -> List[Dict]:
 def ingest_data():
     print("Starting SamvidhanAI Data Ingestion with Pinecone...")
 
-    # Initialize Pinecone
     pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
     index_name = os.environ.get("PINECONE_INDEX", "samvidhan")
     index = pc.Index(index_name)
 
-    # Initialize embeddings with Google Gemini (768 dimensions)
     print("Initializing Google Gemini embeddings...")
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/embedding-001",
         google_api_key=os.environ.get("GOOGLE_API_KEY"),
         task_type="retrieval_document",
         max_retries=1,
-    )  # Initialize vector store
+    )
     vector_store = PineconeVectorStore(embedding=embeddings, index=index)
 
     domain_map = {
@@ -100,18 +89,14 @@ def ingest_data():
             if filename.endswith(".pdf"):
                 print(f"Processing PDF {filename} ({domain})...")
 
-                # Load PDF using LangChain
                 loader = PyPDFLoader(file_path)
                 documents = loader.load()
 
-                # Combine all pages into one text
                 raw_text = "\n".join([doc.page_content for doc in documents])
 
-                # Chunk by sections
                 file_chunks = chunk_text_by_section(raw_text, filename, domain)
 
                 for chunk in file_chunks:
-                    # Create LangChain Document with metadata
                     from langchain_core.documents import Document
 
                     doc = Document(
@@ -140,10 +125,8 @@ def ingest_data():
     if all_documents:
         print(f"\nTotal chunks to upload: {len(all_documents)}")
 
-        # Generate UUIDs for each chunk
         uuids = [str(uuid4()) for _ in range(len(all_documents))]
 
-        # Upload chunks to Pinecone with Mistral embeddings
         print("Uploading to Pinecone...")
         vector_store.add_documents(documents=all_documents, ids=uuids)
 

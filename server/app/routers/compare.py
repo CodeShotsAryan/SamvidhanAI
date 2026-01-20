@@ -5,7 +5,6 @@ import os
 
 router = APIRouter(prefix="/api/compare", tags=["Compare"])
 
-# Load Mapping Data
 DATA_FILE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data/ipc_bns_mapping.json",
@@ -24,7 +23,6 @@ MAPPINGS = load_mappings()
 
 @router.post("/", response_model=CompareResponse)
 async def compare_laws(request: CompareRequest):
-    # Find mapping
     input_sec = str(request.ipc_section).strip()
 
     match = next((item for item in MAPPINGS if item["ipc_section"] == input_sec), None)
