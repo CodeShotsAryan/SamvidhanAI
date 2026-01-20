@@ -21,6 +21,7 @@ class ChatResponse(BaseModel):
     sources: Optional[list] = None
     citations: Optional[list] = None
     comparison: Optional[dict] = None
+    related_cases: Optional[list] = None
 
 
 @router.post("", response_model=ChatResponse)
@@ -42,18 +43,17 @@ async def chat(
         domain=request.domain,
     )
 
+    related_cases = rag_service.find_related_cases(request.message)
+
     import json
 
     citations = answer_dict.get("citations", [])
-
-    # Remove citations from answer_dict before serializing to response string if present
-    # but the frontend parses this JSON string, so keeping them there is also fine.
-    # We will pass them explicitly in the response as well for easier access.
 
     response_json_str = json.dumps(answer_dict)
 
     return {
         "response": response_json_str,
-        "sources": [],  # Removing sources as requested
+        "sources": [],
         "citations": citations,
+        "related_cases": related_cases,
     }

@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
-import { Search, ArrowLeft, Scale, AlertCircle, FileText } from 'lucide-react';
+import { Search, ArrowLeft, AlertCircle, FileText } from 'lucide-react';
+import Image from 'next/image';
 
 interface ComparisonData {
     comparison_text: string;
@@ -60,9 +61,7 @@ export default function ComparePage() {
                         Back to Dashboard
                     </button>
                     <div className="flex items-start gap-3 mb-2">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black text-white rounded-xl flex items-center justify-center flex-shrink-0">
-                            <Scale className="w-5 h-5 sm:w-6 sm:h-6" />
-                        </div>
+                        <Image src="/iconn.png" alt="Logo" width={60} height={60} className='border-2 rounded-full border-slate-300' />
                         <div>
                             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900">IPC vs BNS Comparison</h1>
                             <p className="text-sm sm:text-base text-zinc-600 mt-1">
@@ -124,7 +123,7 @@ export default function ComparePage() {
                         {comparison.key_changes && comparison.key_changes.length > 0 && (
                             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-green-200">
                                 <div className="flex items-center gap-2 mb-4">
-                                    <Scale className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                    <Image src="/iconn.png" alt="Logo" width={20} height={20} className="rounded-full shadow-sm" />
                                     <h3 className="text-lg sm:text-xl font-bold text-zinc-900">
                                         Key Changes & Differences
                                     </h3>
@@ -178,7 +177,7 @@ export default function ComparePage() {
                 {/* Empty State */}
                 {!comparison && !isLoading && !error && (
                     <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-8 sm:p-12 text-center">
-                        <Scale className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 text-zinc-300" />
+                        <Image src="/iconn.png" alt="Logo" width={80} height={80} className="mx-auto mb-4 opacity-50 rounded-full" />
                         <h3 className="text-lg sm:text-xl font-semibold text-zinc-900 mb-2">
                             Start Comparing Sections
                         </h3>

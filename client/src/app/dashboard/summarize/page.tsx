@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
-import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, Download, Scale, Gavel, Book } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, ArrowLeft, Download, Gavel, Book } from 'lucide-react';
+import Image from 'next/image';
 
 interface Summary {
     document_overview: {
@@ -174,8 +175,8 @@ ${summary.key_points.map((point, i) => `${i + 1}. ${point}`).join('\n')}
                             onDragLeave={handleDragLeave}
                             onDrop={handleDrop}
                             className={`border-2 border-dashed rounded-lg sm:rounded-xl p-8 sm:p-12 text-center transition-all ${isDragging
-                                    ? 'border-black bg-zinc-50'
-                                    : 'border-zinc-300 hover:border-zinc-400'
+                                ? 'border-black bg-zinc-50'
+                                : 'border-zinc-300 hover:border-zinc-400'
                                 }`}
                         >
                             <Upload className={`w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 ${isDragging ? 'text-black' : 'text-zinc-400'}`} />
@@ -256,7 +257,7 @@ ${summary.key_points.map((point, i) => `${i + 1}. ${point}`).join('\n')}
 
                         <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6">
                             <div className="flex items-center gap-2 mb-4">
-                                <Scale className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                                <Image src="/iconn.png" alt="Logo" width={20} height={20} className="rounded-full shadow-sm" />
                                 <h3 className="text-lg sm:text-xl font-bold text-zinc-900">Document Overview</h3>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

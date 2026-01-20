@@ -34,6 +34,7 @@ class Message(Base):
     content = Column(Text, nullable=False)
     sources = Column(JSON, nullable=True)
     citations = Column(JSON, nullable=True)
+    related_cases = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     conversation = relationship("Conversation", back_populates="messages")
