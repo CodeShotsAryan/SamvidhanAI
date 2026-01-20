@@ -54,13 +54,7 @@ class SarvamService:
             'file': ('audio.webm', audio_file_content, 'audio/webm')
         }
         data = {
-            "model": "saarika:v2", # Updated according to best practice, trying v2 first as v2.5 might be strictly language specific or newer. 
-            # Docs said "saarika:v2.5" in example, but let's check validation if v2 fails. 
-            # Actually, let's use saarika:v2 as it's generally stable.
-            # Wait, let's try saarika:v1 if v2 is not sure? No, generally v2.
-            # Let's use saarika:v1 for now to match previous pattern unless I see error. 
-            # Actually, I'll use saarika:v2 because user provided docs show v2/v2.5.
-             "model": "saarika:v2"
+            "model": "saaras:v1"
         }
         headers = {
             "api-subscription-key": self.api_key
