@@ -1,9 +1,9 @@
 import React from 'react'
-import Dashboard from '../../components/dashboard/Dashboard'
+import DashboardWrapper from '../../components/dashboard/DashboardWrapper'
 
 const DashboardPage = () => {
     return (
-        <Dashboard />
+        <DashboardWrapper />
     )
 }
 

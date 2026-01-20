@@ -1,55 +1,136 @@
-
 IPC_BNS_MAPPING = {
-    "420": {
-        "title": "Cheating and dishonestly inducing delivery of property",
-        "ipc_section": "420",
-        "bns_section": "318",
-        "ipc_desc": "Whoever cheats and thereby dishonestly induces the person deceived to deliver any property to any person...",
-        "bns_desc": "Whoever cheats and thereby dishonestly induces the person deceived to deliver any property to any person...",
-        "key_changes": "Substantially similar, but renumbered under the new code.",
-    },
     "302": {
-        "title": "Punishment for murder",
-        "ipc_section": "302",
-        "bns_section": "101",
-        "ipc_desc": "Whoever commits murder shall be punished with death, or imprisonment for life, and shall also be liable to fine.",
-        "bns_desc": "Whoever commits murder shall be punished with death, or imprisonment for life, and shall also be liable to fine.",
-        "key_changes": "Moved from Section 302 to Section 101.",
+        "title": "Murder",
+        "ipc_section": "300 (Def) / 302 (Pun)",
+        "bns_section": "101-102 (Def) / 103 (Pun)",
+        "meaning": "Culpable homicide becomes murder if done with intention to cause death, or bodily injury sufficient to cause death, or knowledge of imminent danger.",
+        "punishment": "Death, or Imprisonment for life. Fine may also be imposed.",
+        "key_changes": "Structure reorganized from Section 302 to Section 103.",
     },
+    "300": "302",
+    "299": {
+        "title": "Culpable Homicide Not Amounting to Murder",
+        "ipc_section": "299 (Def) / 304 (Pun)",
+        "bns_section": "101 (Def) / 104 (Pun)",
+        "meaning": "Causing death without the degree of intention required for murder.",
+        "punishment": "Life imprisonment or Imprisonment up to 10 years + Fine.",
+        "key_changes": "Substantively similar with clearer categorization into Section 104.",
+    },
+    "304": "299",
     "307": {
-        "title": "Attempt to murder",
+        "title": "Attempt to Murder",
         "ipc_section": "307",
         "bns_section": "109",
-        "ipc_desc": "Whoever does any act with such intention or knowledge, and under such circumstances that, if he by that act caused death, he would be guilty of murder...",
-        "bns_desc": "Whoever does any act with such intention or knowledge, and under such circumstances that, if he by that act caused death, he would be guilty of murder...",
-        "key_changes": "Renumbered to Section 109.",
+        "meaning": "Act done with intention or knowledge to cause death (death not caused).",
+        "punishment": "Up to 10 years or Life imprisonment + Fine.",
+        "key_changes": "Same offence, renumbered to Section 109.",
     },
-    "375": {
+    "420": {
+        "title": "Cheating (Property)",
+        "ipc_section": "415 (Def) / 420 (Prop)",
+        "bns_section": "316 (Def) / 318 (Prop)",
+        "meaning": "Deception and dishonest/fraudulent inducement for property delivery or harm.",
+        "punishment": "Up to 7 years imprisonment + Fine.",
+        "key_changes": "IPC 420 is now Section 318 of BNS.",
+    },
+    "415": "420",
+    "406": {
+        "title": "Criminal Breach of Trust",
+        "ipc_section": "405 (Def) / 406 (Pun)",
+        "bns_section": "316 (Def) / 317 (Pun)",
+        "meaning": "Entrustment of property and dishonest misappropriation.",
+        "punishment": "Up to 3 years or Fine or Both.",
+        "key_changes": "Substantively unchanged but reorganized under BNS 316/317.",
+    },
+    "405": "406",
+    "379": {
+        "title": "Theft",
+        "ipc_section": "378 (Def) / 379 (Pun)",
+        "bns_section": "303",
+        "meaning": "Dishonest intention, movable property, without consent, out of possession, permanent deprivation.",
+        "punishment": "Up to 3 years or Fine or Both.",
+        "key_changes": "Consolidated into BNS Section 303.",
+    },
+    "378": "379",
+    "392": {
+        "title": "Robbery",
+        "ipc_section": "390 (Def) / 392 (Pun)",
+        "bns_section": "309 (Def) / 310 (Pun)",
+        "meaning": "Theft or extortion with violence or threat of instant harm.",
+        "punishment": "Up to 10 years + Fine.",
+        "key_changes": "Structured more clearly under BNS Sections 309 and 310.",
+    },
+    "390": "392",
+    "395": {
+        "title": "Dacoity",
+        "ipc_section": "391 (Def) / 395 (Pun)",
+        "bns_section": "311 (Def) / 313 (Pun)",
+        "meaning": "Robbery by 5 or more persons.",
+        "punishment": "Life imprisonment or up to 10 years + Fine.",
+        "key_changes": "Reorganized into BNS Sections 311 to 313.",
+    },
+    "391": "395",
+    "376": {
         "title": "Rape",
-        "ipc_section": "375/376",
-        "bns_section": "63/64",
-        "ipc_desc": "A man is said to commit rape who... has sexual intercourse with a woman under circumstances falling under any of the following descriptions...",
-        "bns_desc": "A man is said to commit rape who... has sexual intercourse with a woman under circumstances falling under any of the following descriptions...",
-        "key_changes": "Moved to Chapter V (Offences against Women and Children).",
+        "ipc_section": "375 (Def) / 376 (Pun)",
+        "bns_section": "63 (Def) / 64 (Pun)",
+        "meaning": "Sexual acts without consent. Consent strictly defined.",
+        "punishment": "Rigorous imprisonment (minimum prescribed), extending to life.",
+        "key_changes": "Same offence, renumbered to BNS 63 and 64.",
     },
-    "124A": {
-        "title": "Sedition / Acts endangering sovereignty",
-        "ipc_section": "124A",
-        "bns_section": "150",
-        "ipc_desc": "Whoever by words, either spoken or written, or by signs, or by visible representation, or otherwise, brings or attempts to bring into hatred or contempt...",
-        "bns_desc": "Whoever, purposely or knowingly, by words, either spoken or written, or by signs, or by visible representation, or by electronic communication or by use of financial means...",
-        "key_changes": "Word 'Sedition' removed. Expanded to include electronic communication and financial means.",
+    "375": "376",
+    "506": {
+        "title": "Criminal Intimidation",
+        "ipc_section": "503 (Def) / 506 (Pun)",
+        "bns_section": "235",
+        "meaning": "Threat to cause injury with intent to cause alarm.",
+        "punishment": "Up to 2 years or Fine or Both.",
+        "key_changes": "Renumbered to BNS Section 235.",
     },
-    "143": {
-        "title": "Unlawful Assembly",
-        "ipc_section": "143",
-        "bns_section": "189",
-        "ipc_desc": "Whoever is a member of an unlawful assembly, shall be punished with imprisonment of either description for a term which may extend to six months, or with fine, or with both.",
-        "bns_desc": "Whoever is a member of an unlawful assembly, shall be punished with imprisonment of either description for a term which may extend to six months, or with fine, or with both.",
-        "key_changes": "Renumbered to Section 189.",
+    "503": "506",
+    "341": {
+        "title": "Wrongful Restraint & Confinement",
+        "ipc_section": "339-340 (Def) / 341-342 (Pun)",
+        "bns_section": "126-127",
+        "meaning": "Obstruction or confinement of a person against their will.",
+        "punishment": "Fine or imprisonment depending on duration.",
+        "key_changes": "Renumbered to BNS Sections 126 and 127.",
     },
+    "339": "341",
+    "340": "341",
+    "342": "341",
+    "465": {
+        "title": "Forgery",
+        "ipc_section": "463 (Def) / 465 (Pun)",
+        "bns_section": "336 (Def) / 338 (Pun)",
+        "meaning": "Making false documents or electronic records with intent to deceive.",
+        "punishment": "Up to 2 years or Fine or Both.",
+        "key_changes": "Now covered under Sections 336 and 338 of BNS.",
+    },
+    "463": "465",
 }
 
 
 def get_mapping(section_number: str) -> dict:
-    return IPC_BNS_MAPPING.get(section_number)
+    """
+    Retrieves mapping for a section number.
+    First tries to match as an IPC section (direct key or alias).
+    If no match, searches for the section number in bns_section fields.
+    """
+    # Try as IPC section first
+    result = IPC_BNS_MAPPING.get(section_number)
+    if isinstance(result, str):
+        result = IPC_BNS_MAPPING.get(result)
+
+    if result:
+        return result
+
+    # If not found, search in BNS sections
+    for mapping in IPC_BNS_MAPPING.values():
+        if isinstance(mapping, dict):
+            # Check if section_number is in bns_section (handles cases like "101-102")
+            bns_sec = str(mapping.get("bns_section", ""))
+            if section_number == bns_sec or section_number in bns_sec.split("-"):
+                return mapping
+
+    return None

@@ -52,7 +52,7 @@ export default function Sidebar({
     return (
         <aside
             className={`${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0 lg:w-0'
-                } fixed lg:relative z-30 h-full bg-black text-white transition-all duration-300 ease-in-out flex flex-col overflow-hidden`}
+                } fixed lg:relative z-30 h-full bg-neutral-800 text-white transition-all duration-300 ease-in-out flex flex-col overflow-hidden`}
         >
             <div className="p-4 border-b border-zinc-800 flex items-center justify-between min-w-[16rem]">
                 <div className="flex items-center gap-2">
@@ -100,7 +100,7 @@ export default function Sidebar({
                         </div>
                         <button
                             onClick={(e) => onDeleteConversation(conv.id, e)}
-                            className="relative z-10 p-1.5 hover:bg-zinc-700 rounded-md transition-all duration-200 text-zinc-400 hover:text-rose-400 shrink-0"
+                            className="relative z-10 p-1.5 hover:bg-red-700 rounded-md transition-all duration-200 text-zinc-400 hover:text-red-300 shrink-0 cursor-pointer"
                             aria-label="Delete conversation"
                             type="button"
                         >

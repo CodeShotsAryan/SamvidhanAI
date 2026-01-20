@@ -58,13 +58,13 @@ export default function DeleteConfirmationModal({ isOpen, onClose, onConfirm }: 
                 <div className="flex gap-3">
                     <button
                         onClick={handleClose}
-                        className="flex-1 px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg font-medium transition-all duration-200 text-sm"
+                        className="flex-1 px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg font-medium cursor-pointer text-sm"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleConfirm}
-                        className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium transition-all duration-200 text-sm"
+                        className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-medium transition-all duration-200 text-sm cursor-pointer"
                     >
                         Delete
                     </button>

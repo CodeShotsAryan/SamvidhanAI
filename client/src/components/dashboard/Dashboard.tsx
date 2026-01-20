@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Search, Scale, Paperclip, Square, ArrowUp } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Menu, X, Search, Scale, Square, ArrowUp, FileText, Paperclip, User2Icon } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import Sidebar from './Sidebar';
 import WelcomeScreen from './WelcomeScreen';
 import MessageList from './MessageList';
-import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
 import {
@@ -139,7 +139,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
             </PromptInputBody>
             <PromptInputFooter className="bg-white border-t border-zinc-100">
                 <PromptInputTools>
-                    <AttachButton />
+                    <User2Icon className="w-4 h-4" />
                 </PromptInputTools>
                 {isGenerating ? (
                     <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2 transition-opacity duration-200">
@@ -162,6 +162,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
 
 export default function Dashboard() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -209,6 +210,18 @@ export default function Dashboard() {
         checkAuth();
     }, [router]);
 
+    // Load conversation from URL on mount
+    useEffect(() => {
+        const convId = searchParams.get('c');
+        if (convId && !authLoading) {
+            const id = parseInt(convId);
+            if (!isNaN(id)) {
+                setSelectedConversation(id);
+                loadConversationMessages(id);
+            }
+        }
+    }, [searchParams, authLoading]);
+
     const fetchConversations = async (token?: string) => {
         const authToken = token || localStorage.getItem('token');
         if (!authToken) return;
@@ -249,14 +262,14 @@ export default function Dashboard() {
         }
     };
 
-    const saveMessage = async (conversationId: number, role: string, content: string) => {
+    const saveMessage = async (conversationId: number, role: string, content: string, citations?: any[]) => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
         try {
             await axios.post(
                 API_ENDPOINTS.conversations.saveMessage(conversationId),
-                { role, content, sources: [] },
+                { role, content, sources: [], citations: citations || [] },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
         } catch (error) {
@@ -305,6 +318,36 @@ export default function Dashboard() {
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+    const loadConversationMessages = async (conversationId: number) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const response = await axios.get(
+                API_ENDPOINTS.conversations.get(conversationId),
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setMessages(response.data.messages || []);
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    };
+
+    const handleConversationClick = (id: number) => {
+        setSelectedConversation(id);
+        router.push(`/dashboard?c=${id}`);
+        loadConversationMessages(id);
+        if (window.innerWidth < 1024) {
+            setSidebarOpen(false);
+        }
+    };
+
+    const handleNewQuery = () => {
+        setSelectedConversation(null);
+        setMessages([]);
+        router.push('/dashboard');
+    };
+
     const handleSuggestionClick = async (suggestion: string) => {
         let convId = selectedConversation;
         if (convId === null) {
@@ -349,7 +392,7 @@ export default function Dashboard() {
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            await saveMessage(convId!, 'assistant', aiMsg.content);
+            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations);
 
             fetchConversations();
         } catch (error) {
@@ -418,7 +461,7 @@ export default function Dashboard() {
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            await saveMessage(convId!, 'assistant', aiMsg.content);
+            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations);
 
             fetchConversations();
         } catch (error) {
@@ -431,24 +474,6 @@ export default function Dashboard() {
             setMessages([...newMessages, errorMsg]);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleNewQuery = () => {
-        setSelectedConversation(null);
-        setMessages([]);
-        setSelectedDomain(null);
-        if (window.innerWidth < 1024) {
-            setSidebarOpen(false);
-        }
-    };
-
-    const handleConversationClick = (id: number) => {
-        setSelectedConversation(id);
-        loadConversation(id);
-
-        if (window.innerWidth < 1024) {
-            setSidebarOpen(false);
         }
     };
 
@@ -542,6 +567,34 @@ export default function Dashboard() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => router.push('/dashboard/summarize')}
+                            className="hidden sm:flex items-center gap-2 px-4 cursor-pointer py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
+                        >
+                            <FileText className="w-4 h-4" />
+                            <span className="hidden md:inline">Summarize PDF</span>
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/summarize')}
+                            className="sm:hidden p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                            aria-label="Summarize PDF"
+                        >
+                            <FileText className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/compare')}
+                            className="hidden md:flex items-center gap-2 px-4 cursor-pointer py-2 bg-zinc-100 text-zinc-900 rounded-lg hover:bg-zinc-200 transition-colors text-sm font-medium"
+                        >
+                            <Scale className="w-4 h-4" />
+                            <span className="hidden lg:inline">Compare IPC vs BNS</span>
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/compare')}
+                            className="md:hidden p-2 bg-zinc-100 text-zinc-900 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer"
+                            aria-label="Compare IPC vs BNS"
+                        >
+                            <Scale className="w-4 h-4" />
+                        </button>
                         <button className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600" aria-label="Search">
                             <Search className="w-4 h-4" />
                         </button>
