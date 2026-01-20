@@ -19,6 +19,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     sources: list
+    comparison: Optional[dict] = None
 
 
 @router.post("", response_model=ChatResponse)

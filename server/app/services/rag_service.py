@@ -6,49 +6,42 @@ from pinecone import Pinecone
 from langchain_community.chat_message_histories import ChatMessageHistory
 from dotenv import load_dotenv
 from groq import Groq
+import re
+from app.data.legal_mapping import get_mapping
 
 load_dotenv()
 
 
 class RAGService:
     def __init__(self):
-        # Initialize Pinecone
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         index_name = os.environ.get("PINECONE_INDEX", "samvidhan")
         self.index = pc.Index(index_name)
 
-        # Initialize Mistral embeddings (1024 dimensions)
         self.embeddings = MistralAIEmbeddings(
             model="mistral-embed", mistral_api_key=os.environ.get("MISTRAL_API_KEY")
         )
 
-        # Initialize vector store
         self.vector_store = PineconeVectorStore(
             index=self.index, embedding=self.embeddings
         )
 
-        # Initialize Groq for LLM
         self.chat = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-        # Chat history management (per session)
         self.chat_histories = {}
 
     def get_chat_history(self, session_id: str = "default") -> ChatMessageHistory:
-        """Get or create chat history for a session"""
         if session_id not in self.chat_histories:
             self.chat_histories[session_id] = ChatMessageHistory()
         return self.chat_histories[session_id]
 
     def clear_chat_history(self, session_id: str = "default"):
-        """Clear chat history for a session"""
         if session_id in self.chat_histories:
             self.chat_histories[session_id].clear()
 
     def is_legal_question(self, query: str) -> bool:
-        """Detect if this is a real legal question or just casual chat"""
         query_lower = query.lower().strip()
 
-        # Casual greetings and short messages
         casual_patterns = [
             "hi",
             "hello",
@@ -64,14 +57,32 @@ class RAGService:
             "great",
             "nice",
             "cool",
+            "who are you",
+            "what filter",
+            "which filter",
+            "current filter",
+            "selected filter",
+            "filter i",
         ]
 
-        # If it's very short and matches casual patterns
+        if any(
+            p in query_lower
+            for p in [
+                "what filter",
+                "which filter",
+                "filter i",
+                "filter have",
+                "selected filter",
+                "active filter",
+                "current filter",
+            ]
+        ):
+            return False
+
         if len(query_lower.split()) <= 3:
             if any(pattern in query_lower for pattern in casual_patterns):
                 return False
 
-        # Legal keywords that indicate a real question
         legal_keywords = [
             "section",
             "act",
@@ -93,7 +104,6 @@ class RAGService:
             "cyber",
             "data",
             "privacy",
-            "what is",
             "how to",
             "can i",
             "is it",
@@ -105,7 +115,6 @@ class RAGService:
             "jail",
             "arrest",
             "fir",
-            # Context/history related queries
             "previous",
             "earlier",
             "before",
@@ -117,15 +126,17 @@ class RAGService:
             "you mentioned",
         ]
 
-        # If it contains legal keywords, it's a legal question
         if any(keyword in query_lower for keyword in legal_keywords):
+            if any(
+                p in query_lower
+                for p in ["what filter", "which filter", "current filter"]
+            ):
+                return False
             return True
 
-        # If it's a question (has ?)
         if "?" in query:
             return True
 
-        # If it's longer than 5 words, likely a real question
         if len(query_lower.split()) > 5:
             return True
 
@@ -134,20 +145,14 @@ class RAGService:
     def retrieve_context(
         self, query: str, domain: str = None, n_results: int = 5
     ) -> List[Dict]:
-        """
-        Retrieves relevant legal chunks from Pinecone using Mistral embeddings.
-        """
         try:
-            # Perform similarity search
             if domain:
-                # Filter by domain metadata
                 results = self.vector_store.similarity_search(
                     query, k=n_results, filter={"domain": domain}
                 )
             else:
                 results = self.vector_store.similarity_search(query, k=n_results)
 
-            # Format results with metadata
             citations = []
             for doc in results:
                 citations.append({"text": doc.page_content, "metadata": doc.metadata})
@@ -163,45 +168,37 @@ class RAGService:
         session_id: str = "default",
         domain: str = None,
     ) -> Dict[str, str]:
-        """
-        Uses Groq AI to generate responses - structured for legal questions, casual for greetings.
-        """
-        # Get chat history for this session
         chat_history = self.get_chat_history(session_id)
 
-        # Check if this is a real legal question
         is_legal = self.is_legal_question(query)
 
-        # Keep only last 14 messages to avoid token limits
         if len(chat_history.messages) > 14:
             chat_history.messages = chat_history.messages[-14:]
 
-        # Build history text
         history_text = ""
         for msg in chat_history.messages:
             role = "User" if msg.type == "human" else "SamvidhanAI"
             history_text += f"{role}: {msg.content}\n"
 
         if not is_legal:
-            # Casual conversation mode
-            system_prompt = """
-You are SamvidhanAI, a friendly legal assistant for Indian law.
+            filter_status = f"You currently have the **{domain}** filter active." if domain else "You haven't selected any filter yet."
+            
+            system_prompt = f"""You are SamvidhanAI, a friendly legal assistant for Indian law.
 
-The user just sent a casual message (like "hi", "hello", "thanks", etc).
-Respond naturally and warmly, like a helpful friend. Keep it brief and friendly.
-Invite them to ask any legal questions they might have.
+CURRENT FILTER STATUS: {filter_status}
 
-DO NOT use the structured JSON format for casual messages.
-Just respond with plain text in a friendly, conversational way.
-"""
-            user_prompt = f"""
-Previous Conversation:
+The user just sent a casual message. Respond naturally and warmly.
+
+IMPORTANT: If the user asks about filters (like "what filter", "which filter", "current filter"), clearly tell them: "{filter_status}"
+
+Keep responses brief and friendly. Invite them to ask legal questions."""
+
+            user_prompt = f"""Previous Conversation:
 {history_text}
 
 User's Message: {query}
 
-Respond warmly and naturally. Keep it brief (1-2 sentences).
-"""
+Respond warmly. If asking about filters, tell them clearly what filter is active."""
 
             try:
                 chat_history.add_user_message(query)
@@ -219,15 +216,13 @@ Respond warmly and naturally. Keep it brief (1-2 sentences).
                 casual_response = response.choices[0].message.content
                 chat_history.add_ai_message(casual_response)
 
-                # Return as plain text (no structured format)
                 return {"casual": casual_response}
 
             except Exception as e:
                 return {
-                    "casual": "Hello! I'm here to help with any legal questions you have. What would you like to know?"
+                    "casual": f"{filter_status} I'm here to help with any legal questions you have. What would you like to know?"
                 }
 
-        # Legal question mode - structured response
         context_str = ""
         if context:
             for i, item in enumerate(context, 1):
@@ -240,8 +235,9 @@ Respond warmly and naturally. Keep it brief (1-2 sentences).
                 "No specific legal documents found in database for this query."
             )
 
-        system_prompt = """
-You are SamvidhanAI, a friendly legal assistant for Indian law.
+        filter_context = f"ACTIVE FILTER: The user has selected the **{domain}** filter. Focus your response on this area of law." if domain else ""
+
+        system_prompt = f"""You are SamvidhanAI, a friendly legal assistant for Indian law.
 
 IMPORTANT KNOWLEDGE:
 - Bharatiya Nyaya Sanhita (BNS) replaced Indian Penal Code (IPC) in 2023
@@ -258,11 +254,11 @@ YOUR RESPONSE STYLE:
 6. Be helpful and friendly
 
 OUTPUT FORMAT (JSON ONLY):
-{
+{{
     "law": "The actual law/section. Quote it clearly. Explain what it means in simple words.",
     "examples": "Real examples or court cases. How does this work in real life? Give detailed scenarios.",
     "simple_answer": "Complete, detailed explanation in everyday language. What does this mean? What should the person do? Give step-by-step guidance if needed. Be thorough and helpful."
-}
+}}
 
 RULES:
 1. BILINGUAL: If user asks in Hindi, respond in Hindi
@@ -271,10 +267,10 @@ RULES:
 4. BE ACCURATE: Don't make up laws
 5. USE **BOLD** for important terms
 6. EXPLAIN FULLY: Don't assume user knows legal terms
-"""
 
-        user_prompt = f"""
-Legal Documents from Database:
+{filter_context}"""
+
+        user_prompt = f"""Legal Documents from Database:
 {context_str}
 
 Previous Conversation:
@@ -282,8 +278,7 @@ Previous Conversation:
 
 User's Question: {query}
 
-Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly.
-"""
+Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly."""
 
         try:
             chat_history.add_user_message(query)
@@ -291,7 +286,7 @@ Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly.
             response = self.chat.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 temperature=0.3,
-                max_tokens=2000,  # Increased for detailed responses
+                max_tokens=2000,
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -304,9 +299,21 @@ Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly.
             content = response.choices[0].message.content
             result = json.loads(content)
 
-            # Add AI response to history
+            comparison = None
+            section_matches = re.findall(
+                r"(?:section|ipc|bns)\s*([0-9]+[a-zA-Z]*)", query.lower()
+            )
+            for sec in section_matches:
+                mapping = get_mapping(sec.upper())
+                if mapping:
+                    comparison = mapping
+                    break
+
             ai_response = f"Law: {result.get('law', '')[:200]}...\nExamples: {result.get('examples', '')[:200]}...\nAnswer: {result.get('simple_answer', '')[:200]}..."
             chat_history.add_ai_message(ai_response)
+
+            if comparison:
+                result["comparison"] = comparison
 
             return result
 
@@ -318,5 +325,4 @@ Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly.
             }
 
 
-# Singleton instance
 rag_service = RAGService()

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut, MessageCircleCode, Trash2 } from 'lucide-react';
+import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut, MessageCircleCode, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
@@ -34,6 +34,15 @@ interface SDKMessage {
     role: 'user' | 'assistant' | 'system' | 'data';
     content: string;
     files?: { name: string; type: string; size: number }[];
+    sources?: { act: string; section: string; text: string }[];
+    comparison?: {
+        title: string;
+        ipc_section: string;
+        bns_section: string;
+        ipc_desc: string;
+        bns_desc: string;
+        key_changes: string;
+    };
 }
 
 interface Conversation {
@@ -190,6 +199,7 @@ export default function Dashboard() {
     const [authLoading, setAuthLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
+    const [showSources, setShowSources] = useState<Record<string, boolean>>({});
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when messages change
@@ -373,6 +383,8 @@ export default function Dashboard() {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.data.response,
+                sources: response.data.sources,
+                comparison: response.data.comparison
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
@@ -446,6 +458,7 @@ export default function Dashboard() {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.data.response,
+                sources: response.data.sources
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
@@ -717,12 +730,9 @@ export default function Dashboard() {
                                         try {
                                             const parsed = JSON.parse(m.content);
 
-                                            // Check if it's a casual response (plain text)
                                             if (parsed.casual) {
-                                                // Don't use layered format, will show as plain text
                                                 layeredContent = null;
                                             } else {
-                                                // Handle NEW backend keys: law, examples, simple_answer
                                                 const law = parsed.law;
                                                 const examples = parsed.examples;
                                                 const answer = parsed.simple_answer;
@@ -736,7 +746,6 @@ export default function Dashboard() {
                                                 }
                                             }
                                         } catch (e) {
-                                            // Not JSON, fallback to plain text
                                             layeredContent = null;
                                         }
                                     }
@@ -744,77 +753,107 @@ export default function Dashboard() {
                                     return (
                                         <div
                                             key={m.id}
-                                            className={`p-4 rounded-2xl ${m.role === 'user'
-                                                ? 'bg-zinc-100 ml-auto max-w-[85%]'
-                                                : 'bg-white mr-auto max-w-[95%]'
-                                                }`}
+                                            className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                         >
-                                            <div className="text-sm lg:text-base">
-                                                {layeredContent ? (
-                                                    <div className="space-y-4 w-full">
-                                                        {layeredContent.law && (
-                                                            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 shadow-sm">
-                                                                <div className="flex items-center gap-2 mb-3 text-zinc-900 font-semibold text-sm">
-                                                                    <Scale className="w-4 h-4 text-zinc-600" /> The Law
+                                            <div
+                                                className={`p-2 sm:p-4 rounded-2xl inline-block ${m.role === 'user'
+                                                    ? 'bg-zinc-100 max-w-[85%]'
+                                                    : 'bg-white max-w-[95%]'
+                                                    }`}
+                                            >
+                                                <div className="text-sm lg:text-base">
+                                                    {layeredContent ? (
+                                                        <div className="space-y-4 w-full">
+                                                            {layeredContent.law && (
+                                                                <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 shadow-sm">
+                                                                    <div className="flex items-center gap-2 mb-3 text-green-600 font-semibold text-sm">
+                                                                        <Scale className="w-4 h-4 text-green-600" /> The Law
+                                                                    </div>
+                                                                    <div
+                                                                        className="text-zinc-800 leading-relaxed"
+                                                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.law) }}
+                                                                    />
                                                                 </div>
-                                                                <div
-                                                                    className="text-zinc-800 leading-relaxed"
-                                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.law) }}
-                                                                />
-                                                            </div>
-                                                        )}
-                                                        {layeredContent.examples && (
-                                                            <div className="bg-white border border-zinc-100 rounded-xl p-4 shadow-sm">
-                                                                <div className="flex items-center gap-2 mb-3 text-zinc-800 font-semibold text-sm">
-                                                                    <Book className="w-4 h-4 text-zinc-600" /> Real Examples
+                                                            )}
+                                                            {layeredContent.examples && (
+                                                                <div className="bg-white border border-zinc-100 rounded-xl p-4 shadow-sm">
+                                                                    <div className="flex items-center gap-2 mb-3 text-yellow-600 font-semibold text-sm">
+                                                                        <Book className="w-4 h-4 text-yellow-600" /> Real Examples
+                                                                    </div>
+                                                                    <div
+                                                                        className="text-zinc-700 leading-relaxed"
+                                                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.examples) }}
+                                                                    />
                                                                 </div>
-                                                                <div
-                                                                    className="text-zinc-700 leading-relaxed"
-                                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.examples) }}
-                                                                />
-                                                            </div>
-                                                        )}
-                                                        {layeredContent.answer && (
-                                                            <div className="bg-black border border-black rounded-xl p-5 shadow-xl">
-                                                                <div className="flex items-center gap-2 mb-3 text-white/90 font-semibold text-sm">
-                                                                    <MessageSquare className="w-4 h-4 text-white/70" /> Simple Explanation
+                                                            )}
+                                                            {layeredContent.answer && (
+                                                                <div className="bg-white border border-zinc-100  rounded-xl p-4 shadow-sm">
+                                                                    <div className="flex items-center gap-2 mb-3 text-blue-600  font-semibold text-sm">
+                                                                        <MessageSquare className="w-4 h-4 text-blue-600" /> Simple Explanation
+                                                                    </div>
+                                                                    <div
+                                                                        className="text-zinc-700 leading-relaxed"
+                                                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.answer) }}
+                                                                    />
                                                                 </div>
-                                                                <div
-                                                                    className="text-white leading-relaxed"
-                                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.answer) }}
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div className="whitespace-pre-wrap leading-relaxed">
-                                                        {(() => {
-                                                            // Try to parse as JSON to extract casual response
-                                                            try {
-                                                                const parsed = JSON.parse(m.content);
-                                                                if (parsed.casual) {
-                                                                    return parsed.casual;
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="whitespace-pre-wrap leading-relaxed">
+                                                            {(() => {
+                                                                try {
+                                                                    const parsed = JSON.parse(m.content);
+                                                                    if (parsed.casual) {
+                                                                        return parsed.casual;
+                                                                    }
+                                                                    return m.content;
+                                                                } catch (e) {
+                                                                    return m.content;
                                                                 }
-                                                                // If JSON but no casual key, show as plain text
-                                                                return m.content;
-                                                            } catch (e) {
-                                                                // Not JSON, show as plain text
-                                                                return m.content;
-                                                            }
-                                                        })()}
-                                                    </div>
-                                                )}
+                                                            })()}
+                                                        </div>
+                                                    )}
 
-                                                {m.files && m.files.length > 0 && (
-                                                    <div className="mt-4 flex flex-wrap gap-2">
-                                                        {m.files.map((file, idx) => (
-                                                            <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs text-zinc-700">
-                                                                <FileText className="w-3 h-3" />
-                                                                <span className="font-medium">{file.name}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                    {m.sources && m.sources.length > 0 && (
+                                                        <div className="mt-6 border-t border-zinc-100 pt-4">
+                                                            <button
+                                                                onClick={() => setShowSources(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
+                                                                className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-900 transition-colors"
+                                                            >
+                                                                <FileText className="w-3.5 h-3.5" />
+                                                                Sources Used ({m.sources.length})
+                                                                {showSources[m.id] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                                            </button>
+
+                                                            {showSources[m.id] && (
+                                                                <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                                    {m.sources.map((source, idx) => (
+                                                                        <div key={idx} className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl text-xs">
+                                                                            <div className="font-bold text-zinc-900 flex items-center gap-1.5 mb-1">
+                                                                                <div className="w-1 h-1 rounded-full bg-zinc-400" />
+                                                                                {source.act} {source.section !== 'N/A' && `- Section ${source.section}`}
+                                                                            </div>
+                                                                            <div className="text-zinc-600 leading-relaxed italic line-clamp-3">
+                                                                                "{source.text}"
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {m.files && m.files.length > 0 && (
+                                                        <div className="mt-4 flex flex-wrap gap-2">
+                                                            {m.files.map((file, idx) => (
+                                                                <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs text-zinc-700">
+                                                                    <FileText className="w-3 h-3" />
+                                                                    <span className="font-medium">{file.name}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     );
