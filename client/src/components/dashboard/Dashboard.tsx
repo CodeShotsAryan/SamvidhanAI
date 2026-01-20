@@ -1,10 +1,12 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Search, Scale, Paperclip, Square, ArrowUp, Mic, Volume2, StopCircle } from 'lucide-react';
+import { Menu, X, ArrowUp, Square, Mic, StopCircle, Paperclip, LayoutTemplate, User } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
-import Sidebar from './Sidebar';
-import WelcomeScreen from './WelcomeScreen';
+import TopNav from './TopNav';
+import DashboardHome from './views/DashboardHome';
+import DocumentLab from './views/DocumentLab';
+import OfficialSearch from './views/OfficialSearch';
 import MessageList from './MessageList';
 import GraphDrawer from './GraphDrawer';
 import LegalGraph from './LegalGraph';
@@ -25,6 +27,7 @@ import {
     PromptInputAttachments,
 } from '../ai-elements/prompt-input';
 
+// --- Interfaces --
 interface SDKMessage {
     id: string;
     role: 'user' | 'assistant' | 'system' | 'data';
@@ -55,12 +58,7 @@ interface UserData {
     full_name?: string;
 }
 
-const DOMAIN_ICONS: Record<string, any> = {
-    'Criminal Law': Scale,
-    'Corporate & Commercial Law': Scale,
-    'Cyber & IT Law': Scale,
-};
-
+// --- Helper Components for Prompt Input ---
 function AttachButton() {
     const attachments = usePromptInputAttachments();
     return (
@@ -153,7 +151,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
 
                     try {
                         const token = localStorage.getItem('token');
-                        controller.textInput.setInput('Sanket is Listening...'); // Feedback
+                        controller.textInput.setInput('Sanket is Listening...');
                         const response = await axios.post(
                             API_ENDPOINTS.speech.stt,
                             formData,
@@ -225,21 +223,21 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
     );
 }
 
+// --- Main Dashboard Component ---
 export default function Dashboard() {
     const router = useRouter();
-    const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
-    const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [messages, setMessages] = useState<SDKMessage[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [conversationsLoading, setConversationsLoading] = useState(false);
-    const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; size: number }[]>([]);
+    const [currentView, setCurrentView] = useState('home'); // home, assistant, documents, templates, search
+
+    // Auth & User State
     const [user, setUser] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
-    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
+
+    // Chat State
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [messages, setMessages] = useState<SDKMessage[]>([]);
+    const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     // Audio State
@@ -250,76 +248,7 @@ export default function Dashboard() {
     const [graphOpen, setGraphOpen] = useState(false);
     const [graphContent, setGraphContent] = useState('');
 
-    const handleViewGraph = (content: string) => {
-        setGraphContent(content);
-        setGraphOpen(true);
-    };
-
-    const playAudio = async (text: string, messageId: string) => {
-        if (playingMessageId === messageId) {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current = null;
-            }
-            setPlayingMessageId(null);
-            return;
-        }
-
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
-
-        try {
-            setPlayingMessageId(messageId);
-            const token = localStorage.getItem('token');
-
-            let textToRead = text;
-            try {
-                const parsed = JSON.parse(text);
-                // Extract the most relevant part for speech
-                if (parsed.simple_answer) textToRead = parsed.simple_answer;
-                else if (parsed.simpleanswer) textToRead = parsed.simpleanswer;
-                else if (parsed.casual) textToRead = parsed.casual;
-                else if (parsed.law) textToRead = parsed.law;
-            } catch (e) {
-                // Not JSON, use original text
-            }
-
-            // Clean markdown and citations like [1], [2]
-            const cleanText = textToRead.replace(/[*#_`]/g, '').replace(/\[\d+\]/g, '');
-
-            // Truncate to 500 characters (Sarvam API Limit)
-            const finalPayload = cleanText.length > 490 ? cleanText.substring(0, 490) + "..." : cleanText;
-
-            // Sending request to Sarvam TTS
-            const response = await axios.post(
-                API_ENDPOINTS.speech.tts,
-                { text: finalPayload },
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
-            );
-
-            const audio = new Audio(`data:audio/wav;base64,${response.data.audio}`);
-            audioRef.current = audio;
-            audio.onended = () => {
-                setPlayingMessageId(null);
-                audioRef.current = null;
-            };
-            audio.play();
-
-        } catch (error) {
-            console.error('TTS Error:', error);
-            setPlayingMessageId(null);
-            audioRef.current = null;
-        }
-    };
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
-
+    // --- Effects ---
     useEffect(() => {
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
@@ -327,16 +256,12 @@ export default function Dashboard() {
                 router.push('/auth/login');
                 return;
             }
-
             try {
                 const response = await axios.get(API_ENDPOINTS.auth.me, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                    headers: { Authorization: `Bearer ${token}` },
                 });
                 setUser(response.data);
                 setAuthLoading(false);
-
                 fetchConversations(token);
             } catch (error) {
                 console.error('Auth error:', error);
@@ -344,15 +269,21 @@ export default function Dashboard() {
                 router.push('/auth/login');
             }
         };
-
         checkAuth();
     }, [router]);
 
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    useEffect(() => {
+        setIsGenerating(isLoading);
+    }, [isLoading]);
+
+    // --- API Handlers ---
     const fetchConversations = async (token?: string) => {
         const authToken = token || localStorage.getItem('token');
         if (!authToken) return;
-
-        setConversationsLoading(true);
         try {
             const response = await axios.get(API_ENDPOINTS.conversations.list, {
                 headers: { Authorization: `Bearer ${authToken}` },
@@ -360,25 +291,17 @@ export default function Dashboard() {
             setConversations(response.data);
         } catch (error) {
             console.error('Error fetching conversations:', error);
-        } finally {
-            setConversationsLoading(false);
         }
     };
 
     const createConversation = async (title: string) => {
         const token = localStorage.getItem('token');
         if (!token) return null;
-
         try {
             const response = await axios.post(
                 API_ENDPOINTS.conversations.create,
-                {
-                    title: title.slice(0, 50),
-                    domain_filter: selectedDomain,
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
+                { title: title.slice(0, 50), domain_filter: null },
+                { headers: { Authorization: `Bearer ${token}` } }
             );
             setConversations(prev => [response.data, ...prev]);
             return response.data.id;
@@ -391,7 +314,6 @@ export default function Dashboard() {
     const saveMessage = async (conversationId: number, role: string, content: string) => {
         const token = localStorage.getItem('token');
         if (!token) return;
-
         try {
             await axios.post(
                 API_ENDPOINTS.conversations.saveMessage(conversationId),
@@ -403,149 +325,39 @@ export default function Dashboard() {
         }
     };
 
-    const loadConversation = async (conversationId: number) => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        setIsLoading(true);
-        try {
-            const response = await axios.get(
-                API_ENDPOINTS.conversations.get(conversationId),
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            setMessages(response.data.messages);
-        } catch (error) {
-            console.error('Error loading conversation:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleLogout = () => {
         localStorage.removeItem('token');
         router.push('/auth/login');
     };
 
-    const getUserInitials = () => {
-        if (!user) return 'U';
-        if (user.full_name) {
-            const names = user.full_name.split(' ');
-            if (names.length >= 2) {
-                return `${names[0][0]}${names[1][0]}`.toUpperCase();
-            }
-            return user.full_name[0].toUpperCase();
-        }
-        return user.username[0].toUpperCase();
-    };
-
-    useEffect(() => {
-        setIsGenerating(isLoading);
-    }, [isLoading]);
-
-    const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-
-    const handleSuggestionClick = async (suggestion: string) => {
-        let convId = selectedConversation;
-        if (convId === null) {
-            convId = await createConversation(suggestion);
-            if (!convId) return;
-            setSelectedConversation(convId);
-        }
-
-        const userMsg: SDKMessage = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: suggestion,
-        };
-
-        const newMessages = [...messages, userMsg];
-        setMessages(newMessages);
-        setIsLoading(true);
-
-        await saveMessage(convId, 'user', suggestion);
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.post(
-                API_ENDPOINTS.chat,
-                {
-                    message: suggestion,
-                    conversation_id: convId,
-                    domain: selectedDomain
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
-            );
-
-            const aiMsg: SDKMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: response.data.response,
-                citations: response.data.citations,
-                comparison: response.data.comparison
-            };
-            const finalMessages = [...newMessages, aiMsg];
-            setMessages(finalMessages);
-
-            await saveMessage(convId!, 'assistant', aiMsg.content);
-
-            fetchConversations();
-        } catch (error) {
-            console.error('Error getting AI response:', error);
-            const errorMsg: SDKMessage = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: 'Sorry, I encountered an error processing your request. Please try again.',
-            };
-            setMessages([...newMessages, errorMsg]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+    // --- Chat Logic ---
     const handleSubmit = async (message: { text: string; files?: any[] }) => {
         if (!message.text.trim()) return;
 
         let convId = selectedConversation;
-
         if (convId === null) {
             convId = await createConversation(message.text);
             if (!convId) return;
             setSelectedConversation(convId);
         }
 
-        const fileData = message.files?.map((f: any) => ({
-            name: f.name,
-            type: f.type,
-            size: f.size,
-        })) || [];
-
         const userMsg: SDKMessage = {
             id: Date.now().toString(),
             role: 'user',
             content: message.text,
-            files: fileData.length > 0 ? fileData : undefined,
         };
 
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
         setIsLoading(true);
-
         await saveMessage(convId, 'user', message.text);
 
         try {
             const token = localStorage.getItem('token');
             const response = await axios.post(
                 API_ENDPOINTS.chat,
-                {
-                    message: message.text,
-                    conversation_id: convId,
-                    domain: selectedDomain
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` }
-                }
+                { message: message.text, conversation_id: convId, domain: null },
+                { headers: { Authorization: `Bearer ${token}` } }
             );
 
             const aiMsg: SDKMessage = {
@@ -554,18 +366,15 @@ export default function Dashboard() {
                 content: response.data.response,
                 citations: response.data.citations
             };
-            const finalMessages = [...newMessages, aiMsg];
-            setMessages(finalMessages);
-
+            setMessages([...newMessages, aiMsg]);
             await saveMessage(convId!, 'assistant', aiMsg.content);
-
             fetchConversations();
         } catch (error) {
-            console.error('Error getting AI response:', error);
+            console.error('AI Error:', error);
             const errorMsg: SDKMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: 'Sorry, I encountered an error processing your request. Please try again.',
+                content: 'Sorry, I encountered an error. Please try again.',
             };
             setMessages([...newMessages, errorMsg]);
         } finally {
@@ -573,170 +382,152 @@ export default function Dashboard() {
         }
     };
 
-    const handleNewQuery = () => {
-        setSelectedConversation(null);
-        setMessages([]);
-        setSelectedDomain(null);
-        if (window.innerWidth < 1024) {
-            setSidebarOpen(false);
+    // --- Audio & Graph Logic ---
+    const playAudio = async (text: string, messageId: string) => {
+        if (playingMessageId === messageId) {
+            audioRef.current?.pause();
+            audioRef.current = null;
+            setPlayingMessageId(null);
+            return;
         }
-    };
-
-    const handleConversationClick = (id: number) => {
-        setSelectedConversation(id);
-        loadConversation(id);
-
-        if (window.innerWidth < 1024) {
-            setSidebarOpen(false);
-        }
-    };
-
-    const openDeleteModal = (id: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setConversationToDelete(id);
-        setDeleteModalOpen(true);
-    };
-
-    const confirmDelete = async () => {
-        if (!conversationToDelete) return;
-
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        audioRef.current?.pause();
 
         try {
-            await axios.delete(API_ENDPOINTS.conversations.delete(conversationToDelete), {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            setPlayingMessageId(messageId);
+            const token = localStorage.getItem('token');
+            let textToRead = text;
+            try {
+                const parsed = JSON.parse(text);
+                if (parsed.simple_answer) textToRead = parsed.simple_answer;
+                else if (parsed.simpleanswer) textToRead = parsed.simpleanswer;
+                else if (parsed.law) textToRead = parsed.law;
+            } catch (e) { }
 
-            setConversations(prev => prev.filter(conv => conv.id !== conversationToDelete));
+            const finalPayload = textToRead.replace(/[*#_`]/g, '').replace(/\[\d+\]/g, '').substring(0, 490);
 
-            if (selectedConversation === conversationToDelete) {
-                setSelectedConversation(null);
-                setMessages([]);
-            }
+            const response = await axios.post(
+                API_ENDPOINTS.speech.tts,
+                { text: finalPayload },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            const audio = new Audio(`data:audio/wav;base64,${response.data.audio}`);
+            audioRef.current = audio;
+            audio.onended = () => {
+                setPlayingMessageId(null);
+                audioRef.current = null;
+            };
+            audio.play();
         } catch (error) {
-            console.error('Error deleting conversation:', error);
-        } finally {
-            setDeleteModalOpen(false);
-            setConversationToDelete(null);
+            console.error('TTS Error', error);
+            setPlayingMessageId(null);
+            audioRef.current = null;
         }
     };
 
-    if (authLoading) {
-        return (
-            <div className="flex h-screen items-center justify-center bg-white">
-                <div className="text-center">
-                    <Scale className="w-12 h-12 text-black mx-auto mb-4 animate-pulse" />
-                    <p className="text-zinc-600">Loading...</p>
-                </div>
-            </div>
-        );
-    }
+    const handleViewGraph = (content: string) => {
+        setGraphContent(content);
+        setGraphOpen(true);
+    };
+
+    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-zinc-50">Loading SamvidhanAI...</div>;
 
     return (
-        <div className="flex h-screen bg-white text-black overflow-hidden">
-            <Sidebar
-                sidebarOpen={sidebarOpen}
-                setSidebarOpen={setSidebarOpen}
-                conversations={conversations}
-                selectedConversation={selectedConversation}
-                user={user}
-                onNewQuery={handleNewQuery}
-                onConversationClick={handleConversationClick}
-                onDeleteConversation={openDeleteModal}
-                onLogout={handleLogout}
-            />
+        <div className="flex flex-col h-screen bg-zinc-50 font-sans">
+            {/* Top Navigation */}
+            <TopNav currentView={currentView} setCurrentView={setCurrentView} onLogout={handleLogout} />
 
-            <main className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-                <header className="bg-white border-b border-zinc-200 px-4 lg:px-6 py-3 flex items-center justify-between z-10">
-                    <div className="flex items-center gap-3">
-                        {!sidebarOpen && (
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600"
-                                aria-label="Toggle sidebar"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-                        {sidebarOpen && (
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 hidden lg:block"
-                                aria-label="Toggle sidebar"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-                        {sidebarOpen && (
-                            <button
-                                onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 lg:hidden"
-                                aria-label="Toggle sidebar"
-                            >
-                                <Menu className="w-5 h-5" />
-                            </button>
-                        )}
-                        <span className="text-sm font-semibold text-zinc-800 lg:hidden">SamvidhanAI</span>
-                    </div>
+            {/* Main Content Area */}
+            <main className="flex-1 overflow-y-auto">
+                {currentView === 'home' && (
+                    <DashboardHome
+                        user={user}
+                        stats={{ queries: conversations.length }}
+                        onChangeView={setCurrentView}
+                    />
+                )}
 
-                    <div className="flex items-center gap-2">
-                        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600" aria-label="Search">
-                            <Search className="w-4 h-4" />
-                        </button>
-                        <button className="flex items-center gap-2 p-1.5 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer">
-                            <div className="w-7 h-7 bg-black text-white rounded-full flex items-center justify-center font-semibold text-xs">
-                                {getUserInitials()}
-                            </div>
-                        </button>
-                    </div>
-                </header>
+                {currentView === 'documents' && <DocumentLab />}
 
-                <div className="flex-1 overflow-y-auto w-full">
-                    <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
+                {currentView === 'search' && <OfficialSearch />}
+
+                {currentView === 'assistant' && (
+                    <div className="max-w-4xl mx-auto h-full flex flex-col pt-6 pb-4 px-4 bg-zinc-50">
+                        {/* Messages Area */}
+
                         {messages.length === 0 ? (
-                            <WelcomeScreen
-                                selectedDomain={selectedDomain}
-                                onDomainSelect={(domain) => setSelectedDomain(selectedDomain === domain ? null : domain)}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        ) : (
-                            <MessageList
-                                messages={messages}
-                                isLoading={isLoading}
-                                messagesEndRef={messagesEndRef}
-                                onPlayAudio={playAudio}
-                                playingMessageId={playingMessageId}
-                                onViewGraph={handleViewGraph}
-                            />
-                        )}
-                    </div>
-                </div>
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-zinc-200 flex items-center justify-center mb-6">
+                                    <span className="text-3xl">🤖</span>
+                                </div>
+                                <h2 className="text-2xl font-bold text-zinc-900 mb-2">Constitutional AI Assistant</h2>
+                                <p className="text-zinc-500 max-w-md">Ask about BNS vs IPC, analyze legal documents, or Draft legal notices.</p>
 
-                <div className="p-4 lg:p-6 bg-white border-t border-zinc-100">
-                    <div className="max-w-4xl mx-auto">
-                        <PromptInputProvider>
-                            <PromptInputWrapper
-                                isGenerating={isGenerating}
-                                onSubmit={handleSubmit}
-                                stopGeneration={() => setIsGenerating(false)}
-                            />
-                        </PromptInputProvider>
-                        <p className="text-center text-xs text-zinc-400 mt-4">
-                            SamvidhanAI can provide incorrect information. Please verify with official legal sources.
-                        </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8 max-w-2xl w-full">
+                                    {[
+                                        "Compare IPC 420 vs BNS 318",
+                                        "Draft a rental agreement notice",
+                                        "Explain Bail provisions in BNSS",
+                                        "Summarize Rights of Arrested Persons"
+                                    ].map(s => (
+                                        <button
+                                            key={s}
+                                            onClick={() => handleSubmit({ text: s })}
+                                            className="p-4 bg-white border border-zinc-200 rounded-xl hover:border-blue-300 hover:shadow-sm text-sm font-medium text-zinc-700 text-left transition-all"
+                                        >
+                                            {s}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-y-auto pr-2">
+                                <MessageList
+                                    messages={messages}
+                                    isLoading={isLoading}
+                                    messagesEndRef={messagesEndRef}
+                                    onPlayAudio={playAudio}
+                                    playingMessageId={playingMessageId}
+                                    onViewGraph={handleViewGraph}
+                                />
+                            </div>
+                        )}
+
+                        {/* Input Area */}
+                        <div className="mt-4">
+                            <PromptInputProvider>
+                                <PromptInputWrapper
+                                    isGenerating={isGenerating}
+                                    onSubmit={handleSubmit}
+                                    stopGeneration={() => setIsGenerating(false)}
+                                />
+                            </PromptInputProvider>
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {currentView === 'templates' && (
+                    <div className="min-h-full flex items-center justify-center p-8">
+                        <div className="text-center text-zinc-400">
+                            <LayoutTemplate className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-lg font-medium text-zinc-900">Templates Library</h3>
+                            <p className="max-w-sm mx-auto mt-2">Access 50+ pre-approved legal templates. Coming soon.</p>
+                        </div>
+                    </div>
+                )}
+
+                {currentView === 'citizen' && (
+                    <div className="min-h-full flex items-center justify-center p-8">
+                        <div className="text-center text-zinc-400">
+                            <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <h3 className="text-lg font-medium text-zinc-900">Citizen Mode</h3>
+                            <p className="max-w-sm mx-auto mt-2">Simplified legal interface for general public. Coming soon.</p>
+                        </div>
+                    </div>
+                )}
             </main>
 
-            {deleteModalOpen && (
-                <DeleteConfirmationModal
-                    isOpen={deleteModalOpen}
-                    onClose={() => setDeleteModalOpen(false)}
-                    onConfirm={confirmDelete}
-                />
-            )}
-
+            {/* Graph Drawer & Modals */}
             <GraphDrawer isOpen={graphOpen} onClose={() => setGraphOpen(false)}>
                 {graphContent && <LegalGraph messageContent={graphContent} />}
             </GraphDrawer>
