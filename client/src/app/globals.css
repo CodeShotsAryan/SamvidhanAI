@@ -20,9 +20,9 @@ html {
 [class*="InputGroup"],
 [class*="input-group"],
 .input-group,
-form[class*="w-full"] > div,
-form > div > div,
-form > div > div > div {
+form[class*="w-full"]>div,
+form>div>div,
+form>div>div>div {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
@@ -58,9 +58,9 @@ form[class*="w-full"] *:focus-visible {
 
 /* Target the actual InputGroup component from shadcn */
 .input-group,
-.input-group > div,
+.input-group>div,
 [data-slot="input-group"],
-[data-slot="input-group"] > div {
+[data-slot="input-group"]>div {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
