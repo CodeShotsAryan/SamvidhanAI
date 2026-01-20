@@ -22,6 +22,7 @@ class MessageCreate(BaseModel):
     role: str
     content: str
     sources: Optional[List[dict]] = None
+    citations: Optional[List[dict]] = None
 
 
 class MessageResponse(BaseModel):
@@ -29,6 +30,7 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     sources: Optional[List[dict]] = None
+    citations: Optional[List[dict]] = None
     created_at: datetime
 
     class Config:
@@ -93,8 +95,6 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
     return user
-
-
 
 
 @router.get("", response_model=List[ConversationResponse])
@@ -191,6 +191,7 @@ def add_message(
         role=message.role,
         content=message.content,
         sources=message.sources,
+        citations=message.citations,
     )
     db.add(new_message)
 
@@ -223,8 +224,6 @@ def delete_conversation(
     db.commit()
 
     return {"message": "Conversation deleted successfully"}
-
-
 
 
 @router.get("/domains/list", response_model=List[LegalDomainResponse])

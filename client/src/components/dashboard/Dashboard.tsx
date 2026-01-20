@@ -1,16 +1,12 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowUp, Square, Mic, StopCircle, Paperclip, LayoutTemplate, User } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Menu, X, Search, Scale, Square, ArrowUp, FileText, Paperclip, User2Icon } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
-import TopNav from './TopNav';
-import DashboardHome from './views/DashboardHome';
-import DocumentLab from './views/DocumentLab';
-import OfficialSearch from './views/OfficialSearch';
+import Sidebar from './Sidebar';
+import WelcomeScreen from './WelcomeScreen';
 import MessageList from './MessageList';
-import GraphDrawer from './GraphDrawer';
-import LegalGraph from './LegalGraph';
-import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
 import {
@@ -27,7 +23,6 @@ import {
     PromptInputAttachments,
 } from '../ai-elements/prompt-input';
 
-// --- Interfaces --
 interface SDKMessage {
     id: string;
     role: 'user' | 'assistant' | 'system' | 'data';
@@ -58,7 +53,12 @@ interface UserData {
     full_name?: string;
 }
 
-// --- Helper Components for Prompt Input ---
+const DOMAIN_ICONS: Record<string, any> = {
+    'Criminal Law': Scale,
+    'Corporate & Commercial Law': Scale,
+    'Cyber & IT Law': Scale,
+};
+
 function AttachButton() {
     const attachments = usePromptInputAttachments();
     return (
@@ -94,9 +94,6 @@ function CompactAttachment({ file }: { file: any }) {
 function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGenerating: boolean; onSubmit: (msg: { text: string; files?: any[] }) => void; stopGeneration: () => void }) {
     const controller = usePromptInputController();
     const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
-    const [isRecording, setIsRecording] = useState(false);
-    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
-    const chunksRef = React.useRef<Blob[]>([]);
 
     useEffect(() => {
         if (!hasLoadedFromStorage) {
@@ -127,59 +124,6 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
         localStorage.removeItem('samvidhan-draft-prompt');
     };
 
-    const handleMicClick = async () => {
-        if (isRecording) {
-            mediaRecorderRef.current?.stop();
-            setIsRecording(false);
-        } else {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mediaRecorder = new MediaRecorder(stream);
-                mediaRecorderRef.current = mediaRecorder;
-                chunksRef.current = [];
-
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        chunksRef.current.push(e.data);
-                    }
-                };
-
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-                    const formData = new FormData();
-                    formData.append('file', blob, 'recording.webm');
-
-                    try {
-                        const token = localStorage.getItem('token');
-                        controller.textInput.setInput('Sanket is Listening...');
-                        const response = await axios.post(
-                            API_ENDPOINTS.speech.stt,
-                            formData,
-                            {
-                                headers: {
-                                    'Content-Type': 'multipart/form-data',
-                                    'Authorization': `Bearer ${token}`
-                                }
-                            }
-                        );
-                        controller.textInput.setInput(response.data.transcript);
-                    } catch (error) {
-                        console.error('STT Error:', error);
-                        controller.textInput.setInput('Error in speech recognition.');
-                    }
-
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start();
-                setIsRecording(true);
-            } catch (err) {
-                console.error("Error accessing mic:", err);
-                alert("Could not access microphone.");
-            }
-        }
-    };
-
     return (
         <>
             <PromptInputAttachments>
@@ -189,20 +133,13 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 <PromptInputTextarea
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && !isGenerating && (e.preventDefault(), handleSubmit())}
                     disabled={isGenerating}
-                    placeholder={isGenerating ? "Generating..." : (isRecording ? "Listening..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')")}
+                    placeholder={isGenerating ? "Generating..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')"}
                     className="bg-transparent text-black placeholder:text-zinc-400 resize-none min-h-[44px] max-h-[200px] text-sm lg:text-base disabled:opacity-50 py-2.5"
                 />
             </PromptInputBody>
             <PromptInputFooter className="bg-white border-t border-zinc-100">
                 <PromptInputTools>
-                    <AttachButton />
-                    <button
-                        onClick={handleMicClick}
-                        className={`text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all duration-200 p-2 rounded-md ${isRecording ? 'text-red-500 bg-red-50 hover:bg-red-100 animate-pulse' : ''}`}
-                        title="Voice Input"
-                    >
-                        {isRecording ? <StopCircle className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    </button>
+                    <User2Icon className="w-4 h-4" />
                 </PromptInputTools>
                 {isGenerating ? (
                     <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2 transition-opacity duration-200">
@@ -211,7 +148,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 ) : (
                     <PromptInputSubmit
                         onClick={handleSubmit}
-                        disabled={!controller.textInput.value.trim() && !isRecording}
+                        disabled={!controller.textInput.value.trim()}
                         status="ready"
                         className="bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-400 transition-opacity duration-200 rounded-lg p-2"
                     >
@@ -223,32 +160,28 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
     );
 }
 
-// --- Main Dashboard Component ---
 export default function Dashboard() {
     const router = useRouter();
-    const [currentView, setCurrentView] = useState('home'); // home, assistant, documents, templates, search
-
-    // Auth & User State
-    const [user, setUser] = useState<UserData | null>(null);
-    const [authLoading, setAuthLoading] = useState(true);
-
-    // Chat State
+    const searchParams = useSearchParams();
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<SDKMessage[]>([]);
-    const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [conversationsLoading, setConversationsLoading] = useState(false);
+    const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; size: number }[]>([]);
+    const [user, setUser] = useState<UserData | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
-    // Audio State
-    const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
-    const audioRef = React.useRef<HTMLAudioElement | null>(null);
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
-    // Graph State
-    const [graphOpen, setGraphOpen] = useState(false);
-    const [graphContent, setGraphContent] = useState('');
-
-    // --- Effects ---
     useEffect(() => {
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
@@ -256,12 +189,16 @@ export default function Dashboard() {
                 router.push('/auth/login');
                 return;
             }
+
             try {
                 const response = await axios.get(API_ENDPOINTS.auth.me, {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 });
                 setUser(response.data);
                 setAuthLoading(false);
+
                 fetchConversations(token);
             } catch (error) {
                 console.error('Auth error:', error);
@@ -269,21 +206,27 @@ export default function Dashboard() {
                 router.push('/auth/login');
             }
         };
+
         checkAuth();
     }, [router]);
 
+    // Load conversation from URL on mount
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+        const convId = searchParams.get('c');
+        if (convId && !authLoading) {
+            const id = parseInt(convId);
+            if (!isNaN(id)) {
+                setSelectedConversation(id);
+                loadConversationMessages(id);
+            }
+        }
+    }, [searchParams, authLoading]);
 
-    useEffect(() => {
-        setIsGenerating(isLoading);
-    }, [isLoading]);
-
-    // --- API Handlers ---
     const fetchConversations = async (token?: string) => {
         const authToken = token || localStorage.getItem('token');
         if (!authToken) return;
+
+        setConversationsLoading(true);
         try {
             const response = await axios.get(API_ENDPOINTS.conversations.list, {
                 headers: { Authorization: `Bearer ${authToken}` },
@@ -291,17 +234,25 @@ export default function Dashboard() {
             setConversations(response.data);
         } catch (error) {
             console.error('Error fetching conversations:', error);
+        } finally {
+            setConversationsLoading(false);
         }
     };
 
     const createConversation = async (title: string) => {
         const token = localStorage.getItem('token');
         if (!token) return null;
+
         try {
             const response = await axios.post(
                 API_ENDPOINTS.conversations.create,
-                { title: title.slice(0, 50), domain_filter: null },
-                { headers: { Authorization: `Bearer ${token}` } }
+                {
+                    title: title.slice(0, 50),
+                    domain_filter: selectedDomain,
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
             );
             setConversations(prev => [response.data, ...prev]);
             return response.data.id;
@@ -311,17 +262,36 @@ export default function Dashboard() {
         }
     };
 
-    const saveMessage = async (conversationId: number, role: string, content: string) => {
+    const saveMessage = async (conversationId: number, role: string, content: string, citations?: any[]) => {
         const token = localStorage.getItem('token');
         if (!token) return;
+
         try {
             await axios.post(
                 API_ENDPOINTS.conversations.saveMessage(conversationId),
-                { role, content, sources: [] },
+                { role, content, sources: [], citations: citations || [] },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
         } catch (error) {
             console.error('Error saving message:', error);
+        }
+    };
+
+    const loadConversation = async (conversationId: number) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        setIsLoading(true);
+        try {
+            const response = await axios.get(
+                API_ENDPOINTS.conversations.get(conversationId),
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setMessages(response.data.messages);
+        } catch (error) {
+            console.error('Error loading conversation:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -330,13 +300,58 @@ export default function Dashboard() {
         router.push('/auth/login');
     };
 
-    // --- Chat Logic ---
-    const handleSubmit = async (message: { text: string; files?: any[] }) => {
-        if (!message.text.trim()) return;
+    const getUserInitials = () => {
+        if (!user) return 'U';
+        if (user.full_name) {
+            const names = user.full_name.split(' ');
+            if (names.length >= 2) {
+                return `${names[0][0]}${names[1][0]}`.toUpperCase();
+            }
+            return user.full_name[0].toUpperCase();
+        }
+        return user.username[0].toUpperCase();
+    };
 
+    useEffect(() => {
+        setIsGenerating(isLoading);
+    }, [isLoading]);
+
+    const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+    const loadConversationMessages = async (conversationId: number) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const response = await axios.get(
+                API_ENDPOINTS.conversations.get(conversationId),
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setMessages(response.data.messages || []);
+        } catch (error) {
+            console.error('Error loading messages:', error);
+        }
+    };
+
+    const handleConversationClick = (id: number) => {
+        setSelectedConversation(id);
+        router.push(`/dashboard?c=${id}`);
+        loadConversationMessages(id);
+        if (window.innerWidth < 1024) {
+            setSidebarOpen(false);
+        }
+    };
+
+    const handleNewQuery = () => {
+        setSelectedConversation(null);
+        setMessages([]);
+        router.push('/dashboard');
+    };
+
+    const handleSuggestionClick = async (suggestion: string) => {
         let convId = selectedConversation;
         if (convId === null) {
-            convId = await createConversation(message.text);
+            convId = await createConversation(suggestion);
             if (!convId) return;
             setSelectedConversation(convId);
         }
@@ -344,20 +359,97 @@ export default function Dashboard() {
         const userMsg: SDKMessage = {
             id: Date.now().toString(),
             role: 'user',
-            content: message.text,
+            content: suggestion,
         };
 
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
         setIsLoading(true);
+
+        await saveMessage(convId, 'user', suggestion);
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(
+                API_ENDPOINTS.chat,
+                {
+                    message: suggestion,
+                    conversation_id: convId,
+                    domain: selectedDomain
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            const aiMsg: SDKMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: response.data.response,
+                citations: response.data.citations,
+                comparison: response.data.comparison
+            };
+            const finalMessages = [...newMessages, aiMsg];
+            setMessages(finalMessages);
+
+            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations);
+
+            fetchConversations();
+        } catch (error) {
+            console.error('Error getting AI response:', error);
+            const errorMsg: SDKMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+            };
+            setMessages([...newMessages, errorMsg]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmit = async (message: { text: string; files?: any[] }) => {
+        if (!message.text.trim()) return;
+
+        let convId = selectedConversation;
+
+        if (convId === null) {
+            convId = await createConversation(message.text);
+            if (!convId) return;
+            setSelectedConversation(convId);
+        }
+
+        const fileData = message.files?.map((f: any) => ({
+            name: f.name,
+            type: f.type,
+            size: f.size,
+        })) || [];
+
+        const userMsg: SDKMessage = {
+            id: Date.now().toString(),
+            role: 'user',
+            content: message.text,
+            files: fileData.length > 0 ? fileData : undefined,
+        };
+
+        const newMessages = [...messages, userMsg];
+        setMessages(newMessages);
+        setIsLoading(true);
+
         await saveMessage(convId, 'user', message.text);
 
         try {
             const token = localStorage.getItem('token');
             const response = await axios.post(
                 API_ENDPOINTS.chat,
-                { message: message.text, conversation_id: convId, domain: null },
-                { headers: { Authorization: `Bearer ${token}` } }
+                {
+                    message: message.text,
+                    conversation_id: convId,
+                    domain: selectedDomain
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
             );
 
             const aiMsg: SDKMessage = {
@@ -366,15 +458,18 @@ export default function Dashboard() {
                 content: response.data.response,
                 citations: response.data.citations
             };
-            setMessages([...newMessages, aiMsg]);
-            await saveMessage(convId!, 'assistant', aiMsg.content);
+            const finalMessages = [...newMessages, aiMsg];
+            setMessages(finalMessages);
+
+            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations);
+
             fetchConversations();
         } catch (error) {
-            console.error('AI Error:', error);
+            console.error('Error getting AI response:', error);
             const errorMsg: SDKMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: 'Sorry, I encountered an error. Please try again.',
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
             };
             setMessages([...newMessages, errorMsg]);
         } finally {
@@ -382,155 +477,210 @@ export default function Dashboard() {
         }
     };
 
-    // --- Audio & Graph Logic ---
-    const playAudio = async (text: string, messageId: string) => {
-        if (playingMessageId === messageId) {
-            audioRef.current?.pause();
-            audioRef.current = null;
-            setPlayingMessageId(null);
-            return;
-        }
-        audioRef.current?.pause();
+    const openDeleteModal = (id: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setConversationToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!conversationToDelete) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
 
         try {
-            setPlayingMessageId(messageId);
-            const token = localStorage.getItem('token');
-            let textToRead = text;
-            try {
-                const parsed = JSON.parse(text);
-                if (parsed.simple_answer) textToRead = parsed.simple_answer;
-                else if (parsed.simpleanswer) textToRead = parsed.simpleanswer;
-                else if (parsed.law) textToRead = parsed.law;
-            } catch (e) { }
+            await axios.delete(API_ENDPOINTS.conversations.delete(conversationToDelete), {
+                headers: { Authorization: `Bearer ${token}` }
+            });
 
-            const finalPayload = textToRead.replace(/[*#_`]/g, '').replace(/\[\d+\]/g, '').substring(0, 490);
+            setConversations(prev => prev.filter(conv => conv.id !== conversationToDelete));
 
-            const response = await axios.post(
-                API_ENDPOINTS.speech.tts,
-                { text: finalPayload },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            const audio = new Audio(`data:audio/wav;base64,${response.data.audio}`);
-            audioRef.current = audio;
-            audio.onended = () => {
-                setPlayingMessageId(null);
-                audioRef.current = null;
-            };
-            audio.play();
+            if (selectedConversation === conversationToDelete) {
+                setSelectedConversation(null);
+                setMessages([]);
+            }
         } catch (error) {
-            console.error('TTS Error', error);
-            setPlayingMessageId(null);
-            audioRef.current = null;
+            console.error('Error deleting conversation:', error);
+        } finally {
+            setDeleteModalOpen(false);
+            setConversationToDelete(null);
         }
     };
 
-    const handleViewGraph = (content: string) => {
-        setGraphContent(content);
-        setGraphOpen(true);
-    };
-
-    if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-zinc-50">Loading SamvidhanAI...</div>;
+    if (authLoading) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-white">
+                <div className="text-center">
+                    <Scale className="w-12 h-12 text-black mx-auto mb-4 animate-pulse" />
+                    <p className="text-zinc-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex flex-col h-screen bg-zinc-50 font-sans">
-            {/* Top Navigation */}
-            <TopNav currentView={currentView} setCurrentView={setCurrentView} onLogout={handleLogout} />
+        <div className="flex h-screen bg-white text-black overflow-hidden">
+            <Sidebar
+                sidebarOpen={sidebarOpen}
+                setSidebarOpen={setSidebarOpen}
+                conversations={conversations}
+                selectedConversation={selectedConversation}
+                user={user}
+                onNewQuery={handleNewQuery}
+                onConversationClick={handleConversationClick}
+                onDeleteConversation={openDeleteModal}
+                onLogout={handleLogout}
+            />
 
-            {/* Main Content Area */}
-            <main className="flex-1 overflow-y-auto">
-                {currentView === 'home' && (
-                    <DashboardHome
-                        user={user}
-                        stats={{ queries: conversations.length }}
-                        onChangeView={setCurrentView}
+            <main className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+                <header className="bg-white border-b border-zinc-200 px-4 lg:px-6 py-3 flex items-center justify-between z-10">
+                    <div className="flex items-center gap-3">
+                        {!sidebarOpen && (
+                            <button
+                                onClick={toggleSidebar}
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600"
+                                aria-label="Toggle sidebar"
+                            >
+                                <Menu className="w-5 h-5" />
+                            </button>
+                        )}
+                        {sidebarOpen && (
+                            <button
+                                onClick={toggleSidebar}
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 hidden lg:block"
+                                aria-label="Toggle sidebar"
+                            >
+                                <Menu className="w-5 h-5" />
+                            </button>
+                        )}
+                        {sidebarOpen && (
+                            <button
+                                onClick={toggleSidebar}
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 lg:hidden"
+                                aria-label="Toggle sidebar"
+                            >
+                                <Menu className="w-5 h-5" />
+                            </button>
+                        )}
+                        <span className="text-sm font-semibold text-zinc-800 lg:hidden">SamvidhanAI</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => router.push('/dashboard/summarize')}
+                            className="hidden sm:flex items-center gap-2 px-4 cursor-pointer py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
+                        >
+                            <FileText className="w-4 h-4" />
+                            <span className="hidden md:inline">Summarize PDF</span>
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/summarize')}
+                            className="sm:hidden p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
+                            aria-label="Summarize PDF"
+                        >
+                            <FileText className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/compare')}
+                            className="hidden md:flex items-center gap-2 px-4 cursor-pointer py-2 bg-zinc-100 text-zinc-900 rounded-lg hover:bg-zinc-200 transition-colors text-sm font-medium"
+                        >
+                            <Scale className="w-4 h-4" />
+                            <span className="hidden lg:inline">Compare IPC vs BNS</span>
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/compare')}
+                            className="md:hidden p-2 bg-zinc-100 text-zinc-900 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer"
+                            aria-label="Compare IPC vs BNS"
+                        >
+                            <Scale className="w-4 h-4" />
+                        </button>
+                        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600" aria-label="Search">
+                            <Search className="w-4 h-4" />
+                        </button>
+                        <button className="flex items-center gap-2 p-1.5 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer">
+                            <div className="w-7 h-7 bg-black text-white rounded-full flex items-center justify-center font-semibold text-xs">
+                                {getUserInitials()}
+                            </div>
+                        </button>
+                    </div>
+                </header>
+
+                <div className="flex-1 overflow-y-auto w-full">
+                    <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
+                        {messages.length === 0 ? (
+                            <WelcomeScreen
+                                selectedDomain={selectedDomain}
+                                onDomainSelect={(domain) => setSelectedDomain(selectedDomain === domain ? null : domain)}
+                                onSuggestionClick={handleSuggestionClick}
+                            />
+                        ) : (
+                            <MessageList
+                                messages={messages}
+                                isLoading={isLoading}
+                                messagesEndRef={messagesEndRef}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                <div className="border-t border-zinc-200 bg-white px-4 lg:px-6 py-4 sticky bottom-0 z-20">
+                    <div className="max-w-3xl mx-auto">
+                        {selectedDomain && (
+                            <div className="mb-2 flex items-center gap-2">
+                                <span className="text-xs text-zinc-500">Filtering by:</span>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-black text-white text-xs font-medium rounded-full">
+                                    {React.createElement(DOMAIN_ICONS[selectedDomain], { className: "w-3 h-3" })}
+                                    {selectedDomain}
+                                    <button
+                                        onClick={() => setSelectedDomain(null)}
+                                        className="ml-1 hover:bg-zinc-800 rounded-full p-0.5 transition-opacity duration-200"
+                                        aria-label="Remove filter"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            </div>
+                        )}
+                        <PromptInputProvider>
+                            <div className="border border-zinc-200 rounded-xl transition-opacity duration-200 bg-white overflow-hidden shadow-sm">
+                                <PromptInput
+                                    onSubmit={handleSubmit}
+                                    className="border-0"
+                                >
+                                    <PromptInputWrapper
+                                        isGenerating={isGenerating}
+                                        onSubmit={handleSubmit}
+                                        stopGeneration={() => {
+                                            setIsLoading(false);
+                                            setIsGenerating(false);
+                                        }}
+                                    />
+                                </PromptInput>
+                            </div>
+                        </PromptInputProvider>
+                        <div className="text-xs text-zinc-500 text-center mt-2 font-medium">
+                            SamvidhanAI provides legal information for research purposes. Verify with official sources.
+                        </div>
+                    </div>
+                </div>
+
+                {sidebarOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/60 z-20 lg:hidden transition-opacity duration-300"
+                        onClick={() => setSidebarOpen(false)}
                     />
                 )}
 
-                {currentView === 'documents' && <DocumentLab />}
-
-                {currentView === 'search' && <OfficialSearch />}
-
-                {currentView === 'assistant' && (
-                    <div className="max-w-4xl mx-auto h-full flex flex-col pt-6 pb-4 px-4 bg-zinc-50">
-                        {/* Messages Area */}
-
-                        {messages.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-zinc-200 flex items-center justify-center mb-6">
-                                    <span className="text-3xl">🤖</span>
-                                </div>
-                                <h2 className="text-2xl font-bold text-zinc-900 mb-2">Constitutional AI Assistant</h2>
-                                <p className="text-zinc-500 max-w-md">Ask about BNS vs IPC, analyze legal documents, or Draft legal notices.</p>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8 max-w-2xl w-full">
-                                    {[
-                                        "Compare IPC 420 vs BNS 318",
-                                        "Draft a rental agreement notice",
-                                        "Explain Bail provisions in BNSS",
-                                        "Summarize Rights of Arrested Persons"
-                                    ].map(s => (
-                                        <button
-                                            key={s}
-                                            onClick={() => handleSubmit({ text: s })}
-                                            className="p-4 bg-white border border-zinc-200 rounded-xl hover:border-blue-300 hover:shadow-sm text-sm font-medium text-zinc-700 text-left transition-all"
-                                        >
-                                            {s}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex-1 overflow-y-auto pr-2">
-                                <MessageList
-                                    messages={messages}
-                                    isLoading={isLoading}
-                                    messagesEndRef={messagesEndRef}
-                                    onPlayAudio={playAudio}
-                                    playingMessageId={playingMessageId}
-                                    onViewGraph={handleViewGraph}
-                                />
-                            </div>
-                        )}
-
-                        {/* Input Area */}
-                        <div className="mt-4">
-                            <PromptInputProvider>
-                                <PromptInputWrapper
-                                    isGenerating={isGenerating}
-                                    onSubmit={handleSubmit}
-                                    stopGeneration={() => setIsGenerating(false)}
-                                />
-                            </PromptInputProvider>
-                        </div>
-                    </div>
-                )}
-
-                {currentView === 'templates' && (
-                    <div className="min-h-full flex items-center justify-center p-8">
-                        <div className="text-center text-zinc-400">
-                            <LayoutTemplate className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <h3 className="text-lg font-medium text-zinc-900">Templates Library</h3>
-                            <p className="max-w-sm mx-auto mt-2">Access 50+ pre-approved legal templates. Coming soon.</p>
-                        </div>
-                    </div>
-                )}
-
-                {currentView === 'citizen' && (
-                    <div className="min-h-full flex items-center justify-center p-8">
-                        <div className="text-center text-zinc-400">
-                            <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <h3 className="text-lg font-medium text-zinc-900">Citizen Mode</h3>
-                            <p className="max-w-sm mx-auto mt-2">Simplified legal interface for general public. Coming soon.</p>
-                        </div>
-                    </div>
-                )}
+                <DeleteConfirmationModal
+                    isOpen={deleteModalOpen}
+                    onClose={() => {
+                        setDeleteModalOpen(false);
+                        setConversationToDelete(null);
+                    }}
+                    onConfirm={confirmDelete}
+                />
             </main>
-
-            {/* Graph Drawer & Modals */}
-            <GraphDrawer isOpen={graphOpen} onClose={() => setGraphOpen(false)}>
-                {graphContent && <LegalGraph messageContent={graphContent} />}
-            </GraphDrawer>
         </div>
     );
 }

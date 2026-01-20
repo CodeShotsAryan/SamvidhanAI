@@ -146,11 +146,12 @@ export default function MessageList({ messages, isLoading, messagesEndRef, onPla
                                         <div className="grid grid-cols-1 gap-2">
                                             {m.citations.map((citation: any) => (
                                                 <a
+                                                    id={`citation-${citation.id}`}
                                                     key={citation.id}
                                                     href={citation.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="group flex items-start gap-3 p-3 bg-zinc-50 border border-zinc-100 rounded-xl hover:bg-zinc-100 hover:border-zinc-300 transition-all duration-200"
+                                                    className="group flex items-start gap-3 p-3 bg-zinc-50 border border-zinc-100 rounded-xl hover:bg-zinc-100 hover:border-zinc-300 transition-all duration-200 scroll-mt-20"
                                                 >
                                                     <div className="flex-shrink-0 w-5 h-5 bg-white border border-zinc-200 rounded flex items-center justify-center text-[10px] font-bold text-zinc-900 group-hover:border-zinc-400">
                                                         {citation.id}

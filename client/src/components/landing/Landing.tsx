@@ -14,12 +14,22 @@ const LandingPage: React.FC = () => {
 
   useEffect(() => {
     setIsLoaded(true);
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleAuthAction = () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      router.push('/dashboard');
+    } else {
+      router.push('/auth/register');
+    }
+  };
 
   const features = [
     {
@@ -78,7 +88,7 @@ const LandingPage: React.FC = () => {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-lg border-b border-gray-50 shadow-sm' : 'bg-white'}`}>
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-19 overflow-hidden">
-            <Image src="/SamvidhanAI.png" alt="Logo" width={300} height={300} className='mt-1' />
+            <Image src="/loogoo.png" alt="Logo" width={220} height={220} className='mt-1' />
 
             <motion.div
               initial={{ opacity: 0 }}
@@ -90,7 +100,10 @@ const LandingPage: React.FC = () => {
               <a href="#framework" className="text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Framework</a>
               <a href="#technology" className="text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Technology</a>
               <a href="#docs" className="text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Docs</a>
-              <button onClick={() => router.push('/auth/register')} className="px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded">
+              <button
+                onClick={handleAuthAction}
+                className="px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded"
+              >
                 Sign Up
               </button>
             </motion.div>
@@ -127,7 +140,10 @@ const LandingPage: React.FC = () => {
                 <a href="#framework" onClick={() => setIsMenuOpen(false)} className="block text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Framework</a>
                 <a href="#technology" onClick={() => setIsMenuOpen(false)} className="block text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Technology</a>
                 <a href="#docs" onClick={() => setIsMenuOpen(false)} className="block text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Docs</a>
-                <button onClick={() => router.push('/auth/register')} className="w-full px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded">
+                <button
+                  onClick={handleAuthAction}
+                  className="w-full px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded"
+                >
                   Sign Up
                 </button>
               </motion.div>
@@ -157,7 +173,7 @@ const LandingPage: React.FC = () => {
               Advanced Retrieval-Augmented Generation framework providing precise, context-aware answers to complex legal queries regarding Indian penal codes and regulatory statutes.
             </motion.p>
             <motion.div variants={fadeIn}>
-              <button className="px-7 py-3 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded" onClick={() => router.push('/auth/register')}>
+              <button className="px-7 py-3 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded" onClick={handleAuthAction}>
                 Get started
               </button>
             </motion.div>
@@ -441,8 +457,8 @@ const LandingPage: React.FC = () => {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.3 }}
+            onClick={handleAuthAction}
             className="px-7 py-3 bg-white text-black text-sm font-medium hover:bg-white/90 transition-all cursor-pointer rounded"
-            onClick={() => router.push('/auth/register')}
           >
             Sign Up
           </motion.button>
