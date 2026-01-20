@@ -724,3 +724,7 @@ incorrect startxref pointer(1)
 parsing for Object Streams
 INFO:     127.0.0.1:49018 - "POST /summarize/ HTTP/1.1" 200 OK
 INFO:     127.0.0.1:51570 - "GET / HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1259961]
