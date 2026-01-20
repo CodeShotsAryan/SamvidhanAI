@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from "react";
+import Image from "next/image";
 import api from "../../lib/api";
 import { Loader2, Lock, KeyRound, CheckCircle2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -28,7 +29,7 @@ const ResetPasswordForm = () => {
         setError("");
 
         try {
-            await api.post("/auth/reset-password", {
+            await api.post("/api/auth/reset-password", {
                 email,
                 otp_code: otpCode,
                 new_password: newPassword
@@ -60,9 +61,10 @@ const ResetPasswordForm = () => {
 
     return (
         <div className="min-h-screen flex">
+            {/* Left side - Form */}
             <div className="w-full md:w-1/2 bg-white px-6 py-10 flex flex-col justify-center">
                 <div className="w-full max-w-md mx-auto">
-                    <h1 className="text-4xl font-bold text-slate-900 mb-2">SamvidhanAI</h1>
+                    <Image src="/loogoo.png" alt="SamvidhanAI" width={180} height={48} className="object-contain mb-2" />
                     <p className="text-slate-500 mb-6 text-sm">Reset your password for {email}</p>
 
                     {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 mb-4">{error}</div>}
@@ -77,6 +79,8 @@ const ResetPasswordForm = () => {
                     </form>
                 </div>
             </div>
+
+            {/* Right side - Image Slider */}
             <AuthImageSlider />
         </div>
     );

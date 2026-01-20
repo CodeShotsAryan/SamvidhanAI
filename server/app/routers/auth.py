@@ -187,7 +187,7 @@ async def login(request: Request, db: Session = Depends(get_db)):
     if pending:
         raise HTTPException(
             status_code=403,
-            detail="Email not verified. Please check your email and verify your account.",
+            detail="Your email is not verified yet. Please check your email inbox for the verification code and complete the verification process before logging in.",
         )
 
     user = db.query(User).filter(User.username == username).first()

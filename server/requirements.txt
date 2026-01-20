@@ -1,5 +1,5 @@
 fastapi
-pydantic<2.0.0
+pydantic
 uvicorn
 python-multipart
 pypdf
@@ -20,4 +20,6 @@ aiosmtplib
 pyotp
 groq
 langchain-google-genai
+langchain_mistralai
 google-generativeai
+pinecone-client

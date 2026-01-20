@@ -17,8 +17,10 @@ class RAGService:
         index_name = os.environ.get("PINECONE_INDEX", "samvidhan")
         self.index = pc.Index(index_name)
 
-        # Initialize embeddings
-        self.embeddings = MistralAIEmbeddings(model="mistral-embed")
+        # Initialize Mistral embeddings (1024 dimensions)
+        self.embeddings = MistralAIEmbeddings(
+            model="mistral-embed", mistral_api_key=os.environ.get("MISTRAL_API_KEY")
+        )
 
         # Initialize vector store
         self.vector_store = PineconeVectorStore(
@@ -42,58 +44,133 @@ class RAGService:
         if session_id in self.chat_histories:
             self.chat_histories[session_id].clear()
 
+    def is_legal_question(self, query: str) -> bool:
+        """Detect if this is a real legal question or just casual chat"""
+        query_lower = query.lower().strip()
+
+        # Casual greetings and short messages
+        casual_patterns = [
+            "hi",
+            "hello",
+            "hey",
+            "thanks",
+            "thank you",
+            "ok",
+            "okay",
+            "yes",
+            "no",
+            "bye",
+            "good",
+            "great",
+            "nice",
+            "cool",
+        ]
+
+        # If it's very short and matches casual patterns
+        if len(query_lower.split()) <= 3:
+            if any(pattern in query_lower for pattern in casual_patterns):
+                return False
+
+        # Legal keywords that indicate a real question
+        legal_keywords = [
+            "section",
+            "act",
+            "law",
+            "legal",
+            "ipc",
+            "bns",
+            "bnss",
+            "bsa",
+            "court",
+            "case",
+            "rights",
+            "crime",
+            "punishment",
+            "bail",
+            "company",
+            "contract",
+            "property",
+            "cyber",
+            "data",
+            "privacy",
+            "what is",
+            "how to",
+            "can i",
+            "is it",
+            "explain",
+            "difference",
+            "compare",
+            "penalty",
+            "fine",
+            "jail",
+            "arrest",
+            "fir",
+            # Context/history related queries
+            "previous",
+            "earlier",
+            "before",
+            "last",
+            "above",
+            "context",
+            "what did",
+            "you said",
+            "you mentioned",
+        ]
+
+        # If it contains legal keywords, it's a legal question
+        if any(keyword in query_lower for keyword in legal_keywords):
+            return True
+
+        # If it's a question (has ?)
+        if "?" in query:
+            return True
+
+        # If it's longer than 5 words, likely a real question
+        if len(query_lower.split()) > 5:
+            return True
+
+        return False
+
     def retrieve_context(
-        self, query: str, domain: str = None, n_results: int = 3
+        self, query: str, domain: str = None, n_results: int = 5
     ) -> List[Dict]:
         """
-        Retrieves relevant legal chunks from Pinecone.
+        Retrieves relevant legal chunks from Pinecone using Mistral embeddings.
         """
-        # Perform similarity search
-        if domain:
-            # Filter by domain metadata
-            results = self.vector_store.similarity_search(
-                query, k=n_results, filter={"domain": domain}
-            )
-        else:
-            results = self.vector_store.similarity_search(query, k=n_results)
+        try:
+            # Perform similarity search
+            if domain:
+                # Filter by domain metadata
+                results = self.vector_store.similarity_search(
+                    query, k=n_results, filter={"domain": domain}
+                )
+            else:
+                results = self.vector_store.similarity_search(query, k=n_results)
 
-        # Format results
-        citations = []
-        for doc in results:
-            citations.append({"text": doc.page_content, "metadata": doc.metadata})
-        return citations
-
-    def find_related_cases(self, query: str) -> List[str]:
-        """
-        Feature 2: Automated Case Law Cross-Referencing.
-        Specifically searches the 'CASE_LAW' domain.
-        """
-        results = self.vector_store.similarity_search(
-            query, k=2, filter={"domain": "CASE_LAW"}
-        )
-
-        cases = []
-        for doc in results:
-            case_name = doc.metadata.get("act", "Unknown Judgment")
-            if case_name not in cases:
-                cases.append(case_name)
-        return cases
+            # Format results with metadata
+            citations = []
+            for doc in results:
+                citations.append({"text": doc.page_content, "metadata": doc.metadata})
+            return citations
+        except Exception as e:
+            print(f"[!] RAG Fallback: Vector store error: {e}")
+            return []
 
     def generate_answer(
-        self, query: str, context: List[Dict], session_id: str = "default"
+        self,
+        query: str,
+        context: List[Dict],
+        session_id: str = "default",
+        domain: str = None,
     ) -> Dict[str, str]:
         """
-        Uses Groq AI to synthesize the answer in Green-Yellow-Red format with chat history.
+        Uses Groq AI to generate responses - structured for legal questions, casual for greetings.
         """
-        if not context:
-            return {
-                "green_layer": "No specific statutory law found in database.",
-                "yellow_layer": "No related judgments found.",
-                "red_layer": "Please consult a legal expert.",
-            }
-
         # Get chat history for this session
         chat_history = self.get_chat_history(session_id)
+
+        # Check if this is a real legal question
+        is_legal = self.is_legal_question(query)
 
         # Keep only last 14 messages to avoid token limits
         if len(chat_history.messages) > 14:
@@ -105,54 +182,116 @@ class RAGService:
             role = "User" if msg.type == "human" else "SamvidhanAI"
             history_text += f"{role}: {msg.content}\n"
 
-        # Construct Context Block
+        if not is_legal:
+            # Casual conversation mode
+            system_prompt = """
+You are SamvidhanAI, a friendly legal assistant for Indian law.
+
+The user just sent a casual message (like "hi", "hello", "thanks", etc).
+Respond naturally and warmly, like a helpful friend. Keep it brief and friendly.
+Invite them to ask any legal questions they might have.
+
+DO NOT use the structured JSON format for casual messages.
+Just respond with plain text in a friendly, conversational way.
+"""
+            user_prompt = f"""
+Previous Conversation:
+{history_text}
+
+User's Message: {query}
+
+Respond warmly and naturally. Keep it brief (1-2 sentences).
+"""
+
+            try:
+                chat_history.add_user_message(query)
+
+                response = self.chat.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.7,
+                    max_tokens=150,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                )
+
+                casual_response = response.choices[0].message.content
+                chat_history.add_ai_message(casual_response)
+
+                # Return as plain text (no structured format)
+                return {"casual": casual_response}
+
+            except Exception as e:
+                return {
+                    "casual": "Hello! I'm here to help with any legal questions you have. What would you like to know?"
+                }
+
+        # Legal question mode - structured response
         context_str = ""
-        for item in context:
-            meta = item["metadata"]
-            context_str += f"""
-            [Source: {meta.get("act", "Unknown Act")} | Section: {meta.get("section", "N/A")}]
-            {item["text"]}
-            --------------------------------------------------
-            """
+        if context:
+            for i, item in enumerate(context, 1):
+                meta = item["metadata"]
+                act_name = meta.get("act", "Unknown Act")
+                section = meta.get("section", "N/A")
+                context_str += f"\n[Source {i}: {act_name} | Section: {section}]\n{item['text']}\n{'=' * 50}\n"
+        else:
+            context_str = (
+                "No specific legal documents found in database for this query."
+            )
 
         system_prompt = """
-        You are SamvidhanAI, an advanced Legal Intelligence System.
-        Your output must be strictly structured into three distinct layers (Green, Yellow, Red).
-        
-        OUTPUT FORMAT (JSON ONLY):
-        {
-            "green_layer": "Quote the exact Statutory Law / Act / Section from the context. Be precise.",
-            "yellow_layer": "Mention relevant Case Laws or Judgments given in context or from your general knowledge if highly relevant.",
-            "red_layer": "Provide a simplified, plain-English (or Hindi if asked) explanation and practical insight."
-        }
-        
-        RULES:
-        1. BILINGUAL: If query is Hindi, all layers must be Hindi.
-        2. NO HALLUCINATION: If Green/Yellow details aren't in context, admit it.
-        3. CITATIONS: Use section numbers explicitly.
-        4. CONTEXT AWARE: Use previous conversation history to provide better answers.
-        """
+You are SamvidhanAI, a friendly legal assistant for Indian law.
+
+IMPORTANT KNOWLEDGE:
+- Bharatiya Nyaya Sanhita (BNS) replaced Indian Penal Code (IPC) in 2023
+- Bharatiya Nagarik Suraksha Sanhita (BNSS) replaced CrPC in 2023
+- Bharatiya Sakshya Adhiniyam (BSA) replaced Indian Evidence Act in 2023
+- Example: IPC Section 420 (Cheating) is now BNS Section 318
+
+YOUR RESPONSE STYLE:
+1. Use SIMPLE, EVERYDAY language - explain like talking to a friend
+2. Avoid legal jargon - or explain it simply
+3. Be DETAILED and IN-DEPTH - don't give short answers
+4. Provide COMPLETE explanations with examples
+5. Use short sentences and simple words
+6. Be helpful and friendly
+
+OUTPUT FORMAT (JSON ONLY):
+{
+    "law": "The actual law/section. Quote it clearly. Explain what it means in simple words.",
+    "examples": "Real examples or court cases. How does this work in real life? Give detailed scenarios.",
+    "simple_answer": "Complete, detailed explanation in everyday language. What does this mean? What should the person do? Give step-by-step guidance if needed. Be thorough and helpful."
+}
+
+RULES:
+1. BILINGUAL: If user asks in Hindi, respond in Hindi
+2. BE DETAILED: Give complete, in-depth answers (not just 1-2 lines)
+3. USE EXAMPLES: Always include real-life examples
+4. BE ACCURATE: Don't make up laws
+5. USE **BOLD** for important terms
+6. EXPLAIN FULLY: Don't assume user knows legal terms
+"""
 
         user_prompt = f"""
-Context from Legal Database:
+Legal Documents from Database:
 {context_str}
 
 Previous Conversation:
 {history_text}
 
-Current Query: {query}
+User's Question: {query}
 
-Respond following all rules and considering the conversation history.
+Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly.
 """
 
         try:
-            # Add user message to history
             chat_history.add_user_message(query)
 
             response = self.chat.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                temperature=0.1,
-                max_tokens=1024,
+                temperature=0.3,
+                max_tokens=2000,  # Increased for detailed responses
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -166,16 +305,16 @@ Respond following all rules and considering the conversation history.
             result = json.loads(content)
 
             # Add AI response to history
-            ai_response = f"Green: {result.get('green_layer', '')}\nYellow: {result.get('yellow_layer', '')}\nRed: {result.get('red_layer', '')}"
+            ai_response = f"Law: {result.get('law', '')[:200]}...\nExamples: {result.get('examples', '')[:200]}...\nAnswer: {result.get('simple_answer', '')[:200]}..."
             chat_history.add_ai_message(ai_response)
 
             return result
 
         except Exception as e:
             return {
-                "green_layer": "Error parsing statutory data.",
-                "yellow_layer": "Error retrieving cases.",
-                "red_layer": f"AI Generation Failed: {str(e)}",
+                "law": "Sorry, I couldn't find the exact law for this.",
+                "examples": "No examples available right now.",
+                "simple_answer": f"There was a technical issue: {str(e)}. Please try asking again.",
             }
 
 

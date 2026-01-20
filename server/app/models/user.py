@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -12,6 +14,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
 class PendingUser(Base):
     __tablename__ = "pending_users"
     id = Column(Integer, primary_key=True, index=True)
@@ -21,6 +24,7 @@ class PendingUser(Base):
     hashed_password = Column(String)
     otp_code = Column(String)
     expires_at = Column(DateTime)
+
 
 class PasswordReset(Base):
     __tablename__ = "password_resets"
