@@ -6,6 +6,8 @@ import DeleteConfirmationModal from './DeleteConfirmationModal';
 import Sidebar from './Sidebar';
 import WelcomeScreen from './WelcomeScreen';
 import MessageList from './MessageList';
+import GraphDrawer from './GraphDrawer';
+import LegalGraph from './LegalGraph';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
@@ -243,6 +245,15 @@ export default function Dashboard() {
     // Audio State
     const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
     const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+    // Graph State
+    const [graphOpen, setGraphOpen] = useState(false);
+    const [graphContent, setGraphContent] = useState('');
+
+    const handleViewGraph = (content: string) => {
+        setGraphContent(content);
+        setGraphOpen(true);
+    };
 
     const playAudio = async (text: string, messageId: string) => {
         if (playingMessageId === messageId) {
@@ -696,6 +707,7 @@ export default function Dashboard() {
                                 messagesEndRef={messagesEndRef}
                                 onPlayAudio={playAudio}
                                 playingMessageId={playingMessageId}
+                                onViewGraph={handleViewGraph}
                             />
                         )}
                     </div>
@@ -724,6 +736,10 @@ export default function Dashboard() {
                     onConfirm={confirmDelete}
                 />
             )}
+
+            <GraphDrawer isOpen={graphOpen} onClose={() => setGraphOpen(false)}>
+                {graphContent && <LegalGraph messageContent={graphContent} />}
+            </GraphDrawer>
         </div>
     );
 }
