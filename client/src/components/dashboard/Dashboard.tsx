@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Search, Scale, Paperclip, Square, ArrowUp } from 'lucide-react';
+import { Menu, X, Search, Scale, Paperclip, Square, ArrowUp, Mic, Volume2, StopCircle } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import Sidebar from './Sidebar';
 import WelcomeScreen from './WelcomeScreen';
@@ -94,6 +94,9 @@ function CompactAttachment({ file }: { file: any }) {
 function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGenerating: boolean; onSubmit: (msg: { text: string; files?: any[] }) => void; stopGeneration: () => void }) {
     const controller = usePromptInputController();
     const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+    const chunksRef = React.useRef<Blob[]>([]);
 
     useEffect(() => {
         if (!hasLoadedFromStorage) {
@@ -124,6 +127,59 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
         localStorage.removeItem('samvidhan-draft-prompt');
     };
 
+    const handleMicClick = async () => {
+        if (isRecording) {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                mediaRecorderRef.current = mediaRecorder;
+                chunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        chunksRef.current.push(e.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunksRef.current, { type: 'audio/wav' });
+                    const formData = new FormData();
+                    formData.append('file', blob, 'recording.wav');
+
+                    try {
+                        const token = localStorage.getItem('token');
+                        controller.textInput.setInput('Sanket is Listening...'); // Feedback
+                        const response = await axios.post(
+                            '/api/speech/process-stt',
+                            formData,
+                            {
+                                headers: {
+                                    'Content-Type': 'multipart/form-data',
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            }
+                        );
+                        controller.textInput.setInput(response.data.transcript);
+                    } catch (error) {
+                        console.error('STT Error:', error);
+                        controller.textInput.setInput('Error in speech recognition.');
+                    }
+
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                setIsRecording(true);
+            } catch (err) {
+                console.error("Error accessing mic:", err);
+                alert("Could not access microphone.");
+            }
+        }
+    };
+
     return (
         <>
             <PromptInputAttachments>
@@ -133,13 +189,20 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 <PromptInputTextarea
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && !isGenerating && (e.preventDefault(), handleSubmit())}
                     disabled={isGenerating}
-                    placeholder={isGenerating ? "Generating..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')"}
+                    placeholder={isGenerating ? "Generating..." : (isRecording ? "Listening..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')")}
                     className="bg-transparent text-black placeholder:text-zinc-400 resize-none min-h-[44px] max-h-[200px] text-sm lg:text-base disabled:opacity-50 py-2.5"
                 />
             </PromptInputBody>
             <PromptInputFooter className="bg-white border-t border-zinc-100">
                 <PromptInputTools>
                     <AttachButton />
+                    <button
+                        onClick={handleMicClick}
+                        className={`text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all duration-200 p-2 rounded-md ${isRecording ? 'text-red-500 bg-red-50 hover:bg-red-100 animate-pulse' : ''}`}
+                        title="Voice Input"
+                    >
+                        {isRecording ? <StopCircle className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
                 </PromptInputTools>
                 {isGenerating ? (
                     <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2 transition-opacity duration-200">
@@ -148,7 +211,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 ) : (
                     <PromptInputSubmit
                         onClick={handleSubmit}
-                        disabled={!controller.textInput.value.trim()}
+                        disabled={!controller.textInput.value.trim() && !isRecording}
                         status="ready"
                         className="bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-400 transition-opacity duration-200 rounded-lg p-2"
                     >
@@ -176,6 +239,38 @@ export default function Dashboard() {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    // Audio State
+    const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+
+    const playAudio = async (text: string, messageId: string) => {
+        if (playingMessageId === messageId) {
+            setPlayingMessageId(null);
+            return;
+        }
+
+        try {
+            setPlayingMessageId(messageId);
+            const token = localStorage.getItem('token');
+            const cleanText = text.replace(/[*#_`]/g, '');
+
+            const response = await axios.post(
+                '/api/speech/process-tts',
+                { text: cleanText },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            const audio = new Audio(`data:audio/wav;base64,${response.data.audio}`);
+            audio.onended = () => setPlayingMessageId(null);
+            audio.play();
+
+        } catch (error) {
+            console.error('TTS Error:', error);
+            setPlayingMessageId(null);
+        }
+    };
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -566,68 +661,36 @@ export default function Dashboard() {
                                 messages={messages}
                                 isLoading={isLoading}
                                 messagesEndRef={messagesEndRef}
+                                onPlayAudio={playAudio}
+                                playingMessageId={playingMessageId}
                             />
                         )}
                     </div>
                 </div>
 
-                <div className="border-t border-zinc-200 bg-white px-4 lg:px-6 py-4 sticky bottom-0 z-20">
-                    <div className="max-w-3xl mx-auto">
-                        {selectedDomain && (
-                            <div className="mb-2 flex items-center gap-2">
-                                <span className="text-xs text-zinc-500">Filtering by:</span>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-black text-white text-xs font-medium rounded-full">
-                                    {React.createElement(DOMAIN_ICONS[selectedDomain], { className: "w-3 h-3" })}
-                                    {selectedDomain}
-                                    <button
-                                        onClick={() => setSelectedDomain(null)}
-                                        className="ml-1 hover:bg-zinc-800 rounded-full p-0.5 transition-opacity duration-200"
-                                        aria-label="Remove filter"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </span>
-                            </div>
-                        )}
+                <div className="p-4 lg:p-6 bg-white border-t border-zinc-100">
+                    <div className="max-w-4xl mx-auto">
                         <PromptInputProvider>
-                            <div className="border border-zinc-200 rounded-xl transition-opacity duration-200 bg-white overflow-hidden shadow-sm">
-                                <PromptInput
-                                    onSubmit={handleSubmit}
-                                    className="border-0"
-                                >
-                                    <PromptInputWrapper
-                                        isGenerating={isGenerating}
-                                        onSubmit={handleSubmit}
-                                        stopGeneration={() => {
-                                            setIsLoading(false);
-                                            setIsGenerating(false);
-                                        }}
-                                    />
-                                </PromptInput>
-                            </div>
+                            <PromptInputWrapper
+                                isGenerating={isGenerating}
+                                onSubmit={handleSubmit}
+                                stopGeneration={() => setIsGenerating(false)}
+                            />
                         </PromptInputProvider>
-                        <div className="text-xs text-zinc-500 text-center mt-2 font-medium">
-                            SamvidhanAI provides legal information for research purposes. Verify with official sources.
-                        </div>
+                        <p className="text-center text-xs text-zinc-400 mt-4">
+                            SamvidhanAI can provide incorrect information. Please verify with official legal sources.
+                        </p>
                     </div>
                 </div>
+            </main>
 
-                {sidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/60 z-20 lg:hidden transition-opacity duration-300"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                )}
-
+            {deleteModalOpen && (
                 <DeleteConfirmationModal
                     isOpen={deleteModalOpen}
-                    onClose={() => {
-                        setDeleteModalOpen(false);
-                        setConversationToDelete(null);
-                    }}
+                    onClose={() => setDeleteModalOpen(false)}
                     onConfirm={confirmDelete}
                 />
-            </main>
+            )}
         </div>
     );
 }

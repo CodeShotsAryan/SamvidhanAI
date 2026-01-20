@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, Book, MessageSquare, FileText, ExternalLink } from 'lucide-react';
+import { Scale, Book, MessageSquare, FileText, ExternalLink, Volume2 } from 'lucide-react';
 import { renderMarkdown } from '@/src/lib/markdown';
 import { Message, MessageContent } from '../ai-elements/message';
 import { Shimmer } from '../ai-elements/shimmer';
@@ -16,9 +16,11 @@ interface MessageListProps {
     messages: SDKMessage[];
     isLoading: boolean;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
+    onPlayAudio: (text: string, id: string) => void;
+    playingMessageId: string | null;
 }
 
-export default function MessageList({ messages, isLoading, messagesEndRef }: MessageListProps) {
+export default function MessageList({ messages, isLoading, messagesEndRef, onPlayAudio, playingMessageId }: MessageListProps) {
     return (
         <div className="space-y-8 pb-24">
             {messages.map((m) => {
@@ -114,6 +116,18 @@ export default function MessageList({ messages, isLoading, messagesEndRef }: Mes
                                             })())
                                         }}
                                     />
+                                )}
+
+                                {m.role !== 'user' && (
+                                    <div className="mt-2 flex items-center justify-end">
+                                        <button
+                                            onClick={() => onPlayAudio(m.content, m.id)}
+                                            className={`p-1.5 rounded-full hover:bg-zinc-100 transition-colors ${playingMessageId === m.id ? 'text-indigo-600' : 'text-zinc-400'}`}
+                                            title="Listen to this"
+                                        >
+                                            <Volume2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 )}
 
                                 {m.citations && m.citations.length > 0 && (
