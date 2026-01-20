@@ -18,7 +18,8 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
-    sources: list
+    sources: Optional[list] = None
+    citations: Optional[list] = None
     comparison: Optional[dict] = None
 
 
@@ -34,17 +35,6 @@ async def chat(
         query=request.message, domain=request.domain, n_results=3
     )
 
-    sources = []
-    for item in context:
-        meta = item["metadata"]
-        sources.append(
-            {
-                "act": meta.get("act", "Unknown"),
-                "section": meta.get("section", "N/A"),
-                "text": item.get("text", "")[:200] + "...",
-            }
-        )
-
     answer_dict = rag_service.generate_answer(
         query=request.message,
         context=context,
@@ -54,6 +44,16 @@ async def chat(
 
     import json
 
+    citations = answer_dict.get("citations", [])
+
+    # Remove citations from answer_dict before serializing to response string if present
+    # but the frontend parses this JSON string, so keeping them there is also fine.
+    # We will pass them explicitly in the response as well for easier access.
+
     response_json_str = json.dumps(answer_dict)
 
-    return {"response": response_json_str, "sources": sources}
+    return {
+        "response": response_json_str,
+        "sources": [],  # Removing sources as requested
+        "citations": citations,
+    }
