@@ -24,4 +24,8 @@ export const API_ENDPOINTS = {
     search: `${API_BASE_URL}/api/search`,
     summarize: `${API_BASE_URL}/api/summarize`,
     compare: `${API_BASE_URL}/api/compare`,
+    speech: {
+        tts: `${API_BASE_URL}/api/speech/process-tts`,
+        stt: `${API_BASE_URL}/api/speech/process-stt`
+    }
 };

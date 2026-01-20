@@ -1,5 +1,4 @@
-import React from 'react';
-import { Scale, Book, MessageSquare, FileText, ExternalLink } from 'lucide-react';
+import { Scale, Book, MessageSquare, FileText, ExternalLink, Volume2, Square, Network } from 'lucide-react';
 import { renderMarkdown } from '@/src/lib/markdown';
 import { Message, MessageContent } from '../ai-elements/message';
 import { Shimmer } from '../ai-elements/shimmer';
@@ -16,9 +15,12 @@ interface MessageListProps {
     messages: SDKMessage[];
     isLoading: boolean;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
+    onPlayAudio: (text: string, id: string) => void;
+    playingMessageId: string | null;
+    onViewGraph: (content: string) => void;
 }
 
-export default function MessageList({ messages, isLoading, messagesEndRef }: MessageListProps) {
+export default function MessageList({ messages, isLoading, messagesEndRef, onPlayAudio, playingMessageId, onViewGraph }: MessageListProps) {
     return (
         <div className="space-y-8 pb-24">
             {messages.map((m) => {
@@ -114,6 +116,26 @@ export default function MessageList({ messages, isLoading, messagesEndRef }: Mes
                                             })())
                                         }}
                                     />
+                                )}
+
+                                {m.role !== 'user' && (
+                                    <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3">
+                                        <button
+                                            onClick={() => onViewGraph(m.content)}
+                                            className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            <Network className="w-4 h-4" />
+                                            View Reasoning Graph
+                                        </button>
+
+                                        <button
+                                            onClick={() => onPlayAudio(m.content, m.id)}
+                                            className={`p-2 rounded-full hover:bg-zinc-100 transition-colors ${playingMessageId === m.id ? 'text-red-500 bg-red-50' : 'text-zinc-400'}`}
+                                            title={playingMessageId === m.id ? "Stop" : "Listen to this"}
+                                        >
+                                            {playingMessageId === m.id ? <Square className="w-5 h-5 fill-current" /> : <Volume2 className="w-5 h-5" />}
+                                        </button>
+                                    </div>
                                 )}
 
                                 {m.citations && m.citations.length > 0 && (

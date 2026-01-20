@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import search, summarize, compare, auth, conversations, chat
+from app.routers import search, summarize, compare, auth, conversations, chat, speech
 from app.database import engine, Base, SessionLocal
 from app.models.conversation import LegalDomain
 
@@ -102,3 +102,4 @@ app.include_router(compare.router)
 app.include_router(auth.router)
 app.include_router(conversations.router)
 app.include_router(chat.router)
+app.include_router(speech.router)
