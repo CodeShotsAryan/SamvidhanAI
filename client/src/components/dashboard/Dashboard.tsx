@@ -1,12 +1,14 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut, MessageCircleCode, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Menu, X, Search, Scale, Paperclip, Square, ArrowUp } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import Sidebar from './Sidebar';
+import WelcomeScreen from './WelcomeScreen';
+import MessageList from './MessageList';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
-import { renderMarkdown } from '@/src/lib/markdown';
 import {
     PromptInput,
     PromptInputTextarea,
@@ -19,22 +21,14 @@ import {
     PromptInputBody,
     PromptInputTools,
     PromptInputAttachments,
-    PromptInputAttachment,
 } from '../ai-elements/prompt-input';
-
-import {
-    Message,
-    MessageContent,
-} from '../ai-elements/message';
-
-import { Shimmer } from '../ai-elements/shimmer';
 
 interface SDKMessage {
     id: string;
     role: 'user' | 'assistant' | 'system' | 'data';
     content: string;
     files?: { name: string; type: string; size: number }[];
-    sources?: { act: string; section: string; text: string }[];
+    citations?: { id: number; title: string; source: string; section?: string; url: string }[];
     comparison?: {
         title: string;
         ipc_section: string;
@@ -59,23 +53,10 @@ interface UserData {
     full_name?: string;
 }
 
-const LEGAL_DOMAINS = [
-    'Criminal Law',
-    
-    'Corporate & Commercial Law',
-    'Cyber & IT Law',
-    
-];
-
 const DOMAIN_ICONS: Record<string, any> = {
-    'Criminal Law': Gavel,
-    'Constitutional Law': Book,
-    'Civil Law': Scale,
-    'Corporate & Commercial Law': Building2,
-    'Cyber & IT Law': Globe,
-    'Environmental Law': Globe,
-    'Labour & Employment Law': Briefcase,
-    'Taxation Law': FileText,
+    'Criminal Law': Scale,
+    'Corporate & Commercial Law': Scale,
+    'Cyber & IT Law': Scale,
 };
 
 function AttachButton() {
@@ -194,7 +175,6 @@ export default function Dashboard() {
     const [authLoading, setAuthLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
-    const [showSources, setShowSources] = useState<Record<string, boolean>>({});
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -217,7 +197,7 @@ export default function Dashboard() {
                 });
                 setUser(response.data);
                 setAuthLoading(false);
-                
+
                 fetchConversations(token);
             } catch (error) {
                 console.error('Auth error:', error);
@@ -269,14 +249,14 @@ export default function Dashboard() {
         }
     };
 
-    const saveMessage = async (conversationId: number, role: string, content: string, sources?: any[]) => {
+    const saveMessage = async (conversationId: number, role: string, content: string) => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
         try {
             await axios.post(
                 API_ENDPOINTS.conversations.saveMessage(conversationId),
-                { role, content, sources: sources || [] },
+                { role, content, sources: [] },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
         } catch (error) {
@@ -323,13 +303,6 @@ export default function Dashboard() {
         setIsGenerating(isLoading);
     }, [isLoading]);
 
-    const suggestions = [
-        'Compare IPC 420 vs BNS Section 318',
-        'Summarize recent Supreme Court privacy judgments',
-        'What are the new bail provisions under BNSS?',
-        'Draft a legal notice for breach of contract',
-    ];
-
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
     const handleSuggestionClick = async (suggestion: string) => {
@@ -370,13 +343,13 @@ export default function Dashboard() {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.data.response,
-                sources: response.data.sources,
+                citations: response.data.citations,
                 comparison: response.data.comparison
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            await saveMessage(convId!, 'assistant', aiMsg.content, response.data.sources);
+            await saveMessage(convId!, 'assistant', aiMsg.content);
 
             fetchConversations();
         } catch (error) {
@@ -440,12 +413,12 @@ export default function Dashboard() {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.data.response,
-                sources: response.data.sources
+                citations: response.data.citations
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            await saveMessage(convId!, 'assistant', aiMsg.content, response.data.sources);
+            await saveMessage(convId!, 'assistant', aiMsg.content);
 
             fetchConversations();
         } catch (error) {
@@ -473,7 +446,7 @@ export default function Dashboard() {
     const handleConversationClick = (id: number) => {
         setSelectedConversation(id);
         loadConversation(id);
-        
+
         if (window.innerWidth < 1024) {
             setSidebarOpen(false);
         }
@@ -523,87 +496,17 @@ export default function Dashboard() {
 
     return (
         <div className="flex h-screen bg-white text-black overflow-hidden">
-            <aside
-                className={`${sidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0 lg:w-0'
-                    } fixed lg:relative z-30 h-full bg-black text-white transition-all duration-300 ease-in-out flex flex-col overflow-hidden`}
-            >
-                <div className="p-4 border-b border-zinc-800 flex items-center justify-between min-w-[16rem]">
-                    <div className="flex items-center gap-2">
-                        <Scale className="w-5 h-5 text-white" />
-                        <span className="font-semibold text-base tracking-tight text-white">SamvidhanAI</span>
-                    </div>
-                    <button
-                        onClick={() => setSidebarOpen(false)}
-                        className="lg:hidden p-1.5 hover:bg-zinc-800 rounded transition-opacity duration-200 cursor-pointer text-zinc-400 hover:text-white"
-                        aria-label="Close sidebar"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="p-3 min-w-[16rem]">
-                    <button
-                        onClick={handleNewQuery}
-                        className="w-full flex items-center justify-center gap-2 bg-white text-black py-2 my-4 px-4 rounded-lg hover:bg-zinc-100 transition-opacity duration-200 cursor-pointer font-medium text-sm"
-                    >
-                        <Plus className="w-4 h-4" />
-                        New Query
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-2 min-w-[16rem]">
-                    <div className="text-xs text-zinc-400 px-3 mb-3 mt-2 font-semibold uppercase tracking-wider">
-                        Research History
-                    </div>
-                    {conversations.map((conv) => (
-                        <div
-                            key={conv.id}
-                            className={`w-full group relative flex items-center p-3 rounded-lg mb-2 transition-all duration-200 cursor-pointer ${selectedConversation === conv.id
-                                ? 'bg-zinc-800 text-white'
-                                : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
-                                }`}
-                            onClick={() => handleConversationClick(conv.id)}
-                        >
-                            <div className="flex items-start gap-2 flex-1 min-w-0">
-                                <MessageCircleCode className="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium truncate">{conv.title}</div>
-                                    <div className="text-xs opacity-60 mt-0.5">{conv.date}</div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={(e) => openDeleteModal(conv.id, e)}
-                                className="relative z-10 p-1.5 hover:bg-zinc-700 rounded-md transition-all duration-200 text-zinc-400 hover:text-rose-400 shrink-0"
-                                aria-label="Delete conversation"
-                                type="button"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="p-3 border-t border-zinc-800 min-w-[16rem]">
-                    <div className="flex items-center gap-3 p-2.5 rounded-lg text-zinc-300 mb-2">
-                        <div className="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center font-semibold text-sm">
-                            {getUserInitials()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">
-                                {user?.full_name || user?.username || 'User'}
-                            </div>
-                            <div className="text-xs text-zinc-400 truncate">{user?.email}</div>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-white transition-opacity duration-200 cursor-pointer text-sm"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        <span className="font-medium">Logout</span>
-                    </button>
-                </div>
-            </aside>
+            <Sidebar
+                sidebarOpen={sidebarOpen}
+                setSidebarOpen={setSidebarOpen}
+                conversations={conversations}
+                selectedConversation={selectedConversation}
+                user={user}
+                onNewQuery={handleNewQuery}
+                onConversationClick={handleConversationClick}
+                onDeleteConversation={openDeleteModal}
+                onLogout={handleLogout}
+            />
 
             <main className="flex-1 flex flex-col h-full overflow-hidden bg-white">
                 <header className="bg-white border-b border-zinc-200 px-4 lg:px-6 py-3 flex items-center justify-between z-10">
@@ -653,198 +556,17 @@ export default function Dashboard() {
                 <div className="flex-1 overflow-y-auto w-full">
                     <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
                         {messages.length === 0 ? (
-                            <div className="mt-8 lg:mt-16 text-center">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-50 text-zinc-900 rounded-2xl mb-5 border border-zinc-200">
-                                    <Scale className="w-8 h-8" />
-                                </div>
-
-                                <div className="mb-8">
-                                    <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
-                                        Filter by Domain
-                                    </div>
-                                    <div className="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
-                                        {LEGAL_DOMAINS.map((domain) => {
-                                            const Icon = DOMAIN_ICONS[domain];
-                                            return (
-                                                <button
-                                                    key={domain}
-                                                    onClick={() => setSelectedDomain(selectedDomain === domain ? null : domain)}
-                                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-opacity duration-200 cursor-pointer ${selectedDomain === domain
-                                                        ? 'bg-black text-white'
-                                                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                                                        }`}
-                                                >
-                                                    <Icon className="w-3 h-3" />
-                                                    {domain}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl mx-auto text-left">
-                                    {suggestions.map((suggestion, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => handleSuggestionClick(suggestion)}
-                                            className="p-4 border border-zinc-200 rounded-xl hover:border-zinc-400 hover:shadow-md hover:bg-zinc-50 transition-opacity duration-200 cursor-pointer group flex items-start gap-3 bg-white"
-                                        >
-                                            <Gavel className="w-4 h-4 mt-0.5 text-zinc-400 group-hover:text-zinc-900 transition-opacity duration-200 flex-shrink-0" />
-                                            <div className="text-sm font-medium text-zinc-700 group-hover:text-zinc-900">{suggestion}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            <WelcomeScreen
+                                selectedDomain={selectedDomain}
+                                onDomainSelect={(domain) => setSelectedDomain(selectedDomain === domain ? null : domain)}
+                                onSuggestionClick={handleSuggestionClick}
+                            />
                         ) : (
-                            <div className="space-y-8 pb-24">
-                                {messages.map((m) => {
-                                    const isAssistant = m.role === 'assistant';
-                                    let layeredContent = null;
-
-                                    if (isAssistant) {
-                                        try {
-                                            const parsed = JSON.parse(m.content);
-
-                                            if (parsed.casual) {
-                                                layeredContent = null;
-                                            } else {
-                                                const law = parsed.law;
-                                                const examples = parsed.examples;
-                                                const answer = parsed.simple_answer;
-
-                                                if (law || examples || answer) {
-                                                    layeredContent = {
-                                                        law: law,
-                                                        examples: examples,
-                                                        answer: answer
-                                                    };
-                                                }
-                                            }
-                                        } catch (e) {
-                                            layeredContent = null;
-                                        }
-                                    }
-
-                                    return (
-                                        <div
-                                            key={m.id}
-                                            className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                        >
-                                            <div
-                                                className={`p-2 sm:p-4 rounded-2xl inline-block ${m.role === 'user'
-                                                    ? 'bg-zinc-100 max-w-[85%]'
-                                                    : 'bg-white max-w-[95%]'
-                                                    }`}
-                                            >
-                                                <div className="text-sm lg:text-base">
-                                                    {layeredContent ? (
-                                                        <div className="space-y-4 w-full">
-                                                            {layeredContent.law && (
-                                                                <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 shadow-sm">
-                                                                    <div className="flex items-center gap-2 mb-3 text-green-600 font-semibold text-sm">
-                                                                        <Scale className="w-4 h-4 text-green-600" /> The Law
-                                                                    </div>
-                                                                    <div
-                                                                        className="text-zinc-800 leading-relaxed"
-                                                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.law) }}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                            {layeredContent.examples && (
-                                                                <div className="bg-white border border-zinc-100 rounded-xl p-4 shadow-sm">
-                                                                    <div className="flex items-center gap-2 mb-3 text-yellow-600 font-semibold text-sm">
-                                                                        <Book className="w-4 h-4 text-yellow-600" /> Real Examples
-                                                                    </div>
-                                                                    <div
-                                                                        className="text-zinc-700 leading-relaxed"
-                                                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.examples) }}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                            {layeredContent.answer && (
-                                                                <div className="bg-white border border-zinc-100  rounded-xl p-4 shadow-sm">
-                                                                    <div className="flex items-center gap-2 mb-3 text-blue-600  font-semibold text-sm">
-                                                                        <MessageSquare className="w-4 h-4 text-blue-600" /> Simple Explanation
-                                                                    </div>
-                                                                    <div
-                                                                        className="text-zinc-700 leading-relaxed"
-                                                                        dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.answer) }}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div
-                                                            className="whitespace-pre-wrap leading-relaxed"
-                                                            dangerouslySetInnerHTML={{
-                                                                __html: renderMarkdown((() => {
-                                                                    try {
-                                                                        const parsed = JSON.parse(m.content);
-                                                                        if (parsed.casual) {
-                                                                            return parsed.casual;
-                                                                        }
-                                                                        return m.content;
-                                                                    } catch (e) {
-                                                                        return m.content;
-                                                                    }
-                                                                })())
-                                                            }}
-                                                        />
-                                                    )}
-
-                                                    {m.sources && m.sources.length > 0 && (
-                                                        <div className="mt-6 border-t border-zinc-100 pt-4">
-                                                            <button
-                                                                onClick={() => setShowSources(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
-                                                                className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-900 transition-colors"
-                                                            >
-                                                                <FileText className="w-3.5 h-3.5" />
-                                                                Sources Used ({m.sources.length})
-                                                                {showSources[m.id] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                                                            </button>
-
-                                                            {showSources[m.id] && (
-                                                                <div className="mt-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                    {m.sources.map((source, idx) => (
-                                                                        <div key={idx} className="p-3 bg-zinc-50 border border-zinc-100 rounded-xl text-xs">
-                                                                            <div className="font-bold text-zinc-900 flex items-center gap-1.5 mb-1">
-                                                                                <div className="w-1 h-1 rounded-full bg-zinc-400" />
-                                                                                {source.act} {source.section !== 'N/A' && `- Section ${source.section}`}
-                                                                            </div>
-                                                                            <div className="text-zinc-600 leading-relaxed italic line-clamp-3">
-                                                                                "{source.text}"
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-
-                                                    {m.files && m.files.length > 0 && (
-                                                        <div className="mt-4 flex flex-wrap gap-2">
-                                                            {m.files.map((file, idx) => (
-                                                                <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs text-zinc-700">
-                                                                    <FileText className="w-3 h-3" />
-                                                                    <span className="font-medium">{file.name}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {isLoading && (
-                                    <Message from="assistant">
-                                        <MessageContent>
-                                            <Shimmer className="text-sm lg:text-base">Analyzing your legal query...</Shimmer>
-                                        </MessageContent>
-                                    </Message>
-                                )}
-                                <div ref={messagesEndRef} />
-                            </div>
+                            <MessageList
+                                messages={messages}
+                                isLoading={isLoading}
+                                messagesEndRef={messagesEndRef}
+                            />
                         )}
                     </div>
                 </div>

@@ -151,7 +151,7 @@ Respond in a friendly, natural way."""
 
                 return {"casual": casual_response}
 
-            except Exception as e:
+            except Exception as _e:
                 return {
                     "casual": "Hello! I'm SamvidhanAI, your legal assistant. How can I help you today?"
                 }
@@ -194,13 +194,52 @@ RESPONSE GUIDELINES:
 4. Include real-world examples and scenarios
 5. Be accurate - if unsure, use general legal knowledge
 6. Use **bold** for key terms
+7. MANDATORY: Add citation markers [1], [2], [3] etc. throughout your response when referencing ANY law, section, or case
 
 OUTPUT FORMAT (JSON):
 {{
-    "law": "State the relevant law/section clearly. Explain what it means in simple terms.",
-    "examples": "Provide real-world examples, scenarios, or landmark cases that illustrate this law.",
-    "simple_answer": "Give a complete, detailed explanation in everyday language. Include practical guidance and next steps if relevant."
+    "law": "State the relevant law/section clearly with citation markers [1]. Explain what it means in simple terms. Reference specific sections with markers.",
+    "examples": "Provide real-world examples, scenarios, or landmark cases [2] that illustrate this law. Add citation markers for any case or law mentioned.",
+    "simple_answer": "Give a complete, detailed explanation in everyday language. Include practical guidance and next steps if relevant. Use citation markers [3] for any legal reference.",
+    "citations": [
+        {{
+            "id": 1,
+            "title": "BNS Section 318 - Cheating and dishonestly inducing delivery of property",
+            "source": "Bharatiya Nyaya Sanhita, 2023",
+            "section": "Section 318",
+            "url": "https://indiankanoon.org/search/?formInput=BNS%20Section%20318"
+        }},
+        {{
+            "id": 2,
+            "title": "State of Maharashtra v. Ramdas Shrinivas Nayak",
+            "source": "Supreme Court of India",
+            "section": "Landmark Case",
+            "url": "https://indiankanoon.org/search/?formInput=State%20of%20Maharashtra%20v%20Ramdas%20Shrinivas%20Nayak"
+        }},
+        {{
+            "id": 3,
+            "title": "IPC Section 420 - Cheating and dishonestly inducing delivery of property",
+            "source": "Indian Penal Code, 1860",
+            "section": "Section 420",
+            "url": "https://indiankanoon.org/search/?formInput=IPC%20Section%20420"
+        }}
+    ]
 }}
+
+CITATION RULES - CRITICAL:
+- ALWAYS include citations array with at least 2-5 citations for every legal query
+- Generate reliable, clickable URLs using Indian Kanoon search
+- URL Format: https://indiankanoon.org/search/?formInput=<SEARCH_TERM>
+- For BNS sections: https://indiankanoon.org/search/?formInput=BNS%20Section%20<NUMBER>
+- For IPC sections: https://indiankanoon.org/search/?formInput=IPC%20Section%20<NUMBER>
+- For BNSS sections: https://indiankanoon.org/search/?formInput=BNSS%20Section%20<NUMBER>
+- For BSA sections: https://indiankanoon.org/search/?formInput=BSA%20Section%20<NUMBER>
+- For CrPC sections: https://indiankanoon.org/search/?formInput=CrPC%20Section%20<NUMBER>
+- For court cases: https://indiankanoon.org/search/?formInput=<CASE_NAME_WITH_SPACES_AS_%20>
+- For acts: https://indiankanoon.org/search/?formInput=<ACT_NAME>
+- Citation IDs MUST match the inline markers [1], [2], [3] in your text
+- Each citation must have: id, title, source, section (or "N/A"), and a valid URL
+- URLs must be properly encoded (spaces as %20)
 
 IMPORTANT:
 - If user asks in Hindi, respond in Hindi
@@ -208,6 +247,8 @@ IMPORTANT:
 - Ground responses in provided legal documents when available
 - Use general legal knowledge when specific documents aren't available
 - Never say "I don't have information" - provide helpful general guidance instead
+- MANDATORY: Every legal response MUST include citations array with proper URLs
+- Place citation markers [1], [2] naturally throughout your response text
 
 {filter_info}"""
 
@@ -246,6 +287,9 @@ Provide a detailed, comprehensive response in JSON format."""
             content = response.choices[0].message.content
             result = json.loads(content)
 
+            if "citations" not in result or not result["citations"]:
+                result["citations"] = []
+
             comparison = None
             section_matches = re.findall(
                 r"(?:section|ipc|bns)\s*([0-9]+[a-zA-Z]*)", query.lower()
@@ -270,6 +314,7 @@ Provide a detailed, comprehensive response in JSON format."""
                 "law": "I encountered a technical issue processing your request.",
                 "examples": "Please try rephrasing your question or ask about a specific law or section.",
                 "simple_answer": "There was an error, but I'm here to help. Could you please rephrase your legal question?",
+                "citations": [],
             }
 
 
