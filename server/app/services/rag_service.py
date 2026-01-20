@@ -317,5 +317,57 @@ Provide a detailed, comprehensive response in JSON format."""
                 "citations": [],
             }
 
+    def find_related_cases(self, query: str) -> List[str]:
+        """
+        Dynamically identifies landmark Supreme Court and High Court judgments related to the query.
+        """
+        prompt = f"""Identify 3 landmark Supreme Court or High Court judgments of India related to this legal query: "{query}".
+        
+        For each case, provide:
+        - Case Name
+        - Brief significance (1 sentence)
+        
+        Format: "Case Name (Significance)"
+        Respond only with a JSON list of strings.
+        Example: ["Kesavananda Bharati v. State of Kerala (Basic Structure Doctrine)", "Maneka Gandhi v. Union of India (Right to Travel Abroad)"]
+        """
+
+        try:
+            response = self.chat.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                temperature=0.1,
+                max_tokens=400,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a legal research expert specialized in Indian Case Law.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+            )
+
+            # The model might return a JSON object with a list inside, or just a list.
+            # Using response_format={"type": "json_object"} usually yields {"cases": [...]} or similar.
+            result = json.loads(response.choices[0].message.content)
+
+            # Flexible parsing
+            if isinstance(result, list):
+                return result[:3]
+            if isinstance(result, dict):
+                # Look for common keys
+                for key in ["cases", "judgments", "result", "landmark_cases"]:
+                    if key in result and isinstance(result[key], list):
+                        return result[key][:3]
+                # If it's a dict but no obvious list key, take first list found
+                for val in result.values():
+                    if isinstance(val, list):
+                        return val[:3]
+
+            return []
+        except Exception as e:
+            print(f"Error finding related cases: {e}")
+            return []
+
 
 rag_service = RAGService()

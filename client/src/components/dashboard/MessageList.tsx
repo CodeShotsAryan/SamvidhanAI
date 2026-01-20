@@ -1,5 +1,6 @@
 import React from 'react';
-import { Scale, Book, MessageSquare, FileText, ExternalLink } from 'lucide-react';
+import { Book, MessageSquare, FileText, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
 import { renderMarkdown } from '@/src/lib/markdown';
 import { Message, MessageContent } from '../ai-elements/message';
 import { Shimmer } from '../ai-elements/shimmer';
@@ -10,6 +11,7 @@ interface SDKMessage {
     content: string;
     files?: { name: string; type: string; size: number }[];
     citations?: { id: number; title: string; source: string; section?: string; url: string }[];
+    related_cases?: string[];
 }
 
 interface MessageListProps {
@@ -66,7 +68,7 @@ export default function MessageList({ messages, isLoading, messagesEndRef }: Mes
                                         {layeredContent.law && (
                                             <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 shadow-sm">
                                                 <div className="flex items-center gap-2 mb-3 text-green-600 font-semibold text-sm">
-                                                    <Scale className="w-4 h-4 text-green-600" /> The Law
+                                                    <Image src="/iconn.png" alt="Logo" width={16} height={16} className="rounded-full" /> The Law
                                                 </div>
                                                 <div
                                                     className="text-zinc-800 leading-relaxed"
@@ -116,6 +118,22 @@ export default function MessageList({ messages, isLoading, messagesEndRef }: Mes
                                     />
                                 )}
 
+                                {m.related_cases && m.related_cases.length > 0 && (
+                                    <div className="mt-4 border-t border-zinc-100 pt-4">
+                                        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                            <Image src="/iconn.png" alt="Logo" width={12} height={12} className="rounded-full" /> Landmark SC/HC Judgments
+                                        </div>
+                                        <div className="space-y-2">
+                                            {m.related_cases.map((caseStr, idx) => (
+                                                <div key={idx} className="flex items-start gap-2 text-xs text-zinc-600 bg-zinc-50/50 p-2 rounded-lg border border-zinc-100/50">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 mt-1.5 shrink-0" />
+                                                    <span className="leading-relaxed">{caseStr}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {m.citations && m.citations.length > 0 && (
                                     <div className="mt-6 border-t border-zinc-100 pt-5">
                                         <div className="text-xs font-semibold text-zinc-500 mb-3 uppercase tracking-wider flex items-center gap-2">
@@ -131,7 +149,7 @@ export default function MessageList({ messages, isLoading, messagesEndRef }: Mes
                                                     rel="noopener noreferrer"
                                                     className="group flex items-start gap-3 p-3 bg-zinc-50 border border-zinc-100 rounded-xl hover:bg-zinc-100 hover:border-zinc-300 transition-all duration-200 scroll-mt-20"
                                                 >
-                                                    <div className="flex-shrink-0 w-5 h-5 bg-white border border-zinc-200 rounded flex items-center justify-center text-[10px] font-bold text-zinc-900 group-hover:border-zinc-400">
+                                                    <div className="shrink-0 w-5 h-5 bg-white border border-zinc-200 rounded flex items-center justify-center text-[10px] font-bold text-zinc-900 group-hover:border-zinc-400">
                                                         {citation.id}
                                                     </div>
                                                     <div className="flex-1 min-w-0">

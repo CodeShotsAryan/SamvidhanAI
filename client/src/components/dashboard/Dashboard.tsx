@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Menu, X, Search, Scale, Square, ArrowUp, FileText, Paperclip, User2Icon } from 'lucide-react';
+import { Menu, X, Search, Square, ArrowUp, FileText, Paperclip, User2Icon } from 'lucide-react';
+import Image from 'next/image';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import Sidebar from './Sidebar';
 import WelcomeScreen from './WelcomeScreen';
@@ -37,6 +39,7 @@ interface SDKMessage {
         bns_desc: string;
         key_changes: string;
     };
+    related_cases?: string[];
 }
 
 interface Conversation {
@@ -54,9 +57,9 @@ interface UserData {
 }
 
 const DOMAIN_ICONS: Record<string, any> = {
-    'Criminal Law': Scale,
-    'Corporate & Commercial Law': Scale,
-    'Cyber & IT Law': Scale,
+    'Criminal Law': () => <Image src="/iconn.png" alt="Logo" width={12} height={12} className="rounded-full" />,
+    'Corporate & Commercial Law': () => <Image src="/iconn.png" alt="Logo" width={12} height={12} className="rounded-full" />,
+    'Cyber & IT Law': () => <Image src="/iconn.png" alt="Logo" width={12} height={12} className="rounded-full" />,
 };
 
 function AttachButton() {
@@ -262,14 +265,14 @@ export default function Dashboard() {
         }
     };
 
-    const saveMessage = async (conversationId: number, role: string, content: string, citations?: any[]) => {
+    const saveMessage = async (conversationId: number, role: string, content: string, citations?: any[], related_cases?: string[]) => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
         try {
             await axios.post(
                 API_ENDPOINTS.conversations.saveMessage(conversationId),
-                { role, content, sources: [], citations: citations || [] },
+                { role, content, sources: [], citations: citations || [], related_cases: related_cases || [] },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
         } catch (error) {
@@ -387,12 +390,13 @@ export default function Dashboard() {
                 role: 'assistant',
                 content: response.data.response,
                 citations: response.data.citations,
-                comparison: response.data.comparison
+                comparison: response.data.comparison,
+                related_cases: response.data.related_cases
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations);
+            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations, aiMsg.related_cases);
 
             fetchConversations();
         } catch (error) {
@@ -456,12 +460,13 @@ export default function Dashboard() {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.data.response,
-                citations: response.data.citations
+                citations: response.data.citations,
+                related_cases: response.data.related_cases
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
 
-            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations);
+            await saveMessage(convId!, 'assistant', aiMsg.content, aiMsg.citations, aiMsg.related_cases);
 
             fetchConversations();
         } catch (error) {
@@ -508,19 +513,46 @@ export default function Dashboard() {
         }
     };
 
+    const containerVariants: Variants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                duration: 0.4,
+                ease: "easeOut"
+            }
+        }
+    };
+
+    const itemVariants: Variants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 }
+    };
+
     if (authLoading) {
         return (
             <div className="flex h-screen items-center justify-center bg-white">
                 <div className="text-center">
-                    <Scale className="w-12 h-12 text-black mx-auto mb-4 animate-pulse" />
-                    <p className="text-zinc-600">Loading...</p>
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                        className="mx-auto mb-4 w-12 h-12"
+                    >
+                        <Image src="/iconn.png" alt="Logo" width={48} height={48} className="animate-pulse rounded-full border border-zinc-200" />
+                    </motion.div>
+                    <p className="text-zinc-600 font-medium tracking-tight">Loading SamvidhanAI...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex h-screen bg-white text-black overflow-hidden">
+        <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={containerVariants}
+            className="flex h-screen bg-white text-black overflow-hidden"
+        >
             <Sidebar
                 sidebarOpen={sidebarOpen}
                 setSidebarOpen={setSidebarOpen}
@@ -531,15 +563,20 @@ export default function Dashboard() {
                 onConversationClick={handleConversationClick}
                 onDeleteConversation={openDeleteModal}
                 onLogout={handleLogout}
+                onSummarize={() => router.push('/dashboard/summarize')}
+                onCompare={() => router.push('/dashboard?view=compare')} // Mocked compare view or navigation
             />
 
-            <main className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+            <motion.main
+                variants={itemVariants}
+                className="flex-1 flex flex-col h-full overflow-hidden bg-white"
+            >
                 <header className="bg-white border-b border-zinc-200 px-4 lg:px-6 py-3 flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
                         {!sidebarOpen && (
                             <button
                                 onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600"
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-all duration-200 cursor-pointer text-zinc-600"
                                 aria-label="Toggle sidebar"
                             >
                                 <Menu className="w-5 h-5" />
@@ -548,7 +585,7 @@ export default function Dashboard() {
                         {sidebarOpen && (
                             <button
                                 onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 hidden lg:block"
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-all duration-200 cursor-pointer text-zinc-600 hidden lg:block"
                                 aria-label="Toggle sidebar"
                             >
                                 <Menu className="w-5 h-5" />
@@ -557,93 +594,89 @@ export default function Dashboard() {
                         {sidebarOpen && (
                             <button
                                 onClick={toggleSidebar}
-                                className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600 lg:hidden"
+                                className="p-2 hover:bg-zinc-100 rounded-lg transition-all duration-200 cursor-pointer text-zinc-600 lg:hidden"
                                 aria-label="Toggle sidebar"
                             >
                                 <Menu className="w-5 h-5" />
                             </button>
                         )}
-                        <span className="text-sm font-semibold text-zinc-800 lg:hidden">SamvidhanAI</span>
+                        <span className="text-sm font-bold text-zinc-900 hidden xs:inline-block tracking-tight">SamvidhanAI</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => router.push('/dashboard/summarize')}
-                            className="hidden sm:flex items-center gap-2 px-4 cursor-pointer py-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors text-sm font-medium"
-                        >
-                            <FileText className="w-4 h-4" />
-                            <span className="hidden md:inline">Summarize PDF</span>
-                        </button>
-                        <button
-                            onClick={() => router.push('/dashboard/summarize')}
-                            className="sm:hidden p-2 bg-black text-white rounded-lg hover:bg-zinc-800 transition-colors"
-                            aria-label="Summarize PDF"
-                        >
-                            <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => router.push('/dashboard/compare')}
-                            className="hidden md:flex items-center gap-2 px-4 cursor-pointer py-2 bg-zinc-100 text-zinc-900 rounded-lg hover:bg-zinc-200 transition-colors text-sm font-medium"
-                        >
-                            <Scale className="w-4 h-4" />
-                            <span className="hidden lg:inline">Compare IPC vs BNS</span>
-                        </button>
-                        <button
-                            onClick={() => router.push('/dashboard/compare')}
-                            className="md:hidden p-2 bg-zinc-100 text-zinc-900 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer"
-                            aria-label="Compare IPC vs BNS"
-                        >
-                            <Scale className="w-4 h-4" />
-                        </button>
-                        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer text-zinc-600" aria-label="Search">
+                        <button className="p-2 hover:bg-zinc-100 rounded-lg transition-all duration-200 cursor-pointer text-zinc-600" aria-label="Search">
                             <Search className="w-4 h-4" />
                         </button>
-                        <button className="flex items-center gap-2 p-1.5 hover:bg-zinc-100 rounded-lg transition-opacity duration-200 cursor-pointer">
-                            <div className="w-7 h-7 bg-black text-white rounded-full flex items-center justify-center font-semibold text-xs">
+                        <button className="flex items-center gap-1.5 p-1 bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-all cursor-pointer">
+                            <div className="w-6 h-6 bg-black text-white rounded-full flex items-center justify-center font-bold text-[10px]">
                                 {getUserInitials()}
                             </div>
                         </button>
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto w-full">
+                <div className="flex-1 overflow-y-auto w-full scrollbar-hidden">
                     <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
-                        {messages.length === 0 ? (
-                            <WelcomeScreen
-                                selectedDomain={selectedDomain}
-                                onDomainSelect={(domain) => setSelectedDomain(selectedDomain === domain ? null : domain)}
-                                onSuggestionClick={handleSuggestionClick}
-                            />
-                        ) : (
-                            <MessageList
-                                messages={messages}
-                                isLoading={isLoading}
-                                messagesEndRef={messagesEndRef}
-                            />
-                        )}
+                        <AnimatePresence mode="wait">
+                            {messages.length === 0 ? (
+                                <motion.div
+                                    key="welcome"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                >
+                                    <WelcomeScreen
+                                        selectedDomain={selectedDomain}
+                                        onDomainSelect={(domain) => setSelectedDomain(selectedDomain === domain ? null : domain)}
+                                        onSuggestionClick={handleSuggestionClick}
+                                    />
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    key="chat"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ duration: 0.4 }}
+                                >
+                                    <MessageList
+                                        messages={messages}
+                                        isLoading={isLoading}
+                                        messagesEndRef={messagesEndRef}
+                                    />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
 
-                <div className="border-t border-zinc-200 bg-white px-4 lg:px-6 py-4 sticky bottom-0 z-20">
+                <motion.div
+                    variants={itemVariants}
+                    className="border-t border-zinc-200 bg-white px-4 lg:px-6 py-4 sticky bottom-0 z-20"
+                >
                     <div className="max-w-3xl mx-auto">
                         {selectedDomain && (
-                            <div className="mb-2 flex items-center gap-2">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="mb-2 flex items-center gap-2"
+                            >
                                 <span className="text-xs text-zinc-500">Filtering by:</span>
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-black text-white text-xs font-medium rounded-full">
-                                    {React.createElement(DOMAIN_ICONS[selectedDomain], { className: "w-3 h-3" })}
+                                    {typeof DOMAIN_ICONS[selectedDomain] === 'function' ? DOMAIN_ICONS[selectedDomain]() : React.createElement(DOMAIN_ICONS[selectedDomain], { className: "w-3 h-3" })}
                                     {selectedDomain}
                                     <button
                                         onClick={() => setSelectedDomain(null)}
-                                        className="ml-1 hover:bg-zinc-800 rounded-full p-0.5 transition-opacity duration-200"
+                                        className="ml-1 hover:bg-zinc-800 rounded-full p-0.5 transition-all duration-200"
                                         aria-label="Remove filter"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
                                 </span>
-                            </div>
+                            </motion.div>
                         )}
                         <PromptInputProvider>
-                            <div className="border border-zinc-200 rounded-xl transition-opacity duration-200 bg-white overflow-hidden shadow-sm">
+                            <div className="border border-zinc-200 rounded-xl transition-all duration-200 bg-white overflow-hidden shadow-sm hover:shadow-md">
                                 <PromptInput
                                     onSubmit={handleSubmit}
                                     className="border-0"
@@ -663,14 +696,19 @@ export default function Dashboard() {
                             SamvidhanAI provides legal information for research purposes. Verify with official sources.
                         </div>
                     </div>
-                </div>
+                </motion.div>
 
-                {sidebarOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/60 z-20 lg:hidden transition-opacity duration-300"
-                        onClick={() => setSidebarOpen(false)}
-                    />
-                )}
+                <AnimatePresence>
+                    {sidebarOpen && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 z-20 lg:hidden transition-all duration-300"
+                            onClick={() => setSidebarOpen(false)}
+                        />
+                    )}
+                </AnimatePresence>
 
                 <DeleteConfirmationModal
                     isOpen={deleteModalOpen}
@@ -680,7 +718,8 @@ export default function Dashboard() {
                     }}
                     onConfirm={confirmDelete}
                 />
-            </main>
-        </div>
+            </motion.main>
+        </motion.div>
     );
 }
+

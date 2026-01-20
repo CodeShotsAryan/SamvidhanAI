@@ -3,8 +3,9 @@ set -e
 
 echo "🔄 Running database migrations..."
 
-# Run the migration script
+# Run the migration scripts
 python add_citations_migration.py
+python add_related_cases_migration.py
 
 echo "✅ Migrations complete!"
 echo "🚀 Starting FastAPI server..."
