@@ -20,13 +20,13 @@ export default function TopNav({ currentView, setCurrentView, onLogout }: TopNav
     return (
         <nav className="sticky top-0 z-50 bg-white border-b border-zinc-200 px-4 lg:px-6 h-16 flex items-center justify-between shadow-sm">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 via-white to-orange-500 rounded-xl shadow-inner flex items-center justify-center border border-zinc-200">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 via-white to-orange-500 rounded-xl shadow-inner flex items-center justify-center border border-zinc-200 flex-shrink-0">
                     <span className="text-xl font-bold text-blue-900">स</span>
                 </div>
-                <div>
-                    <h1 className="text-lg font-bold text-zinc-900 leading-tight">SamvidhanAI</h1>
-                    <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest">Constitutional AI Platform</p>
+                <div className="min-w-0">
+                    <h1 className="text-lg font-bold text-zinc-900 leading-tight truncate">SamvidhanAI</h1>
+                    <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest truncate">Constitutional AI Platform</p>
                 </div>
             </div>
 
@@ -40,8 +40,8 @@ export default function TopNav({ currentView, setCurrentView, onLogout }: TopNav
                             key={item.id}
                             onClick={() => setCurrentView(item.id)}
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive
-                                    ? 'bg-indigo-50 text-indigo-700'
-                                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                                ? 'bg-indigo-50 text-indigo-700'
+                                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
                                 }`}
                         >
                             <Icon className={`w-4 h-4 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />

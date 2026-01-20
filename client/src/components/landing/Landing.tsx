@@ -69,7 +69,7 @@ const LandingPage: React.FC = () => {
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: isLoaded ? 1 : 0 }}
       transition={{ duration: 1, ease: "easeOut" }}
@@ -78,9 +78,9 @@ const LandingPage: React.FC = () => {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-lg border-b border-gray-50 shadow-sm' : 'bg-white'}`}>
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-19 overflow-hidden">
-             <Image src="/SamvidhanAI.png" alt="Logo" width={300} height={300} className='mt-1'/>
+            <Image src="/SamvidhanAI.png" alt="Logo" width={300} height={300} className='mt-1' />
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 0.4 }}
@@ -90,12 +90,12 @@ const LandingPage: React.FC = () => {
               <a href="#framework" className="text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Framework</a>
               <a href="#technology" className="text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Technology</a>
               <a href="#docs" className="text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Docs</a>
-              <button className="px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded">
+              <button onClick={() => router.push('/auth/register')} className="px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded">
                 Sign Up
               </button>
             </motion.div>
 
-            <motion.button 
+            <motion.button
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 0.4 }}
@@ -109,14 +109,14 @@ const LandingPage: React.FC = () => {
 
         <AnimatePresence>
           {isMenuOpen && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.4, ease: "easeInOut" }}
               className="md:hidden bg-white border-t border-black/10 overflow-hidden"
             >
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -127,7 +127,7 @@ const LandingPage: React.FC = () => {
                 <a href="#framework" onClick={() => setIsMenuOpen(false)} className="block text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Framework</a>
                 <a href="#technology" onClick={() => setIsMenuOpen(false)} className="block text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Technology</a>
                 <a href="#docs" onClick={() => setIsMenuOpen(false)} className="block text-sm text-black/60 hover:text-black transition-colors cursor-pointer">Docs</a>
-                <button className="w-full px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded">
+                <button onClick={() => router.push('/auth/register')} className="w-full px-5 py-2 bg-black text-white text-sm font-medium hover:bg-black/90 transition-all cursor-pointer rounded">
                   Sign Up
                 </button>
               </motion.div>
@@ -138,19 +138,19 @@ const LandingPage: React.FC = () => {
 
       <section className="relative pt-52 pb-16 px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
-          <motion.div 
+          <motion.div
             initial="initial"
             animate="animate"
             variants={staggerContainer}
             className="text-center mb-12"
           >
-            <motion.h1 
+            <motion.h1
               variants={fadeIn}
               className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 "
             >
               Boost your productivity<br />with one tool
             </motion.h1>
-            <motion.p 
+            <motion.p
               variants={fadeIn}
               className="text-base md:text-lg text-black/60 max-w-2xl mx-auto mb-10 leading-relaxed"
             >
@@ -163,7 +163,7 @@ const LandingPage: React.FC = () => {
             </motion.div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.2, delay: 0.6 }}
@@ -203,7 +203,7 @@ const LandingPage: React.FC = () => {
             </div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.2, delay: 0.8 }}
@@ -237,7 +237,7 @@ const LandingPage: React.FC = () => {
       <section className="relative py-16 px-6 lg:px-8 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <motion.h2 
+            <motion.h2
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
@@ -246,7 +246,7 @@ const LandingPage: React.FC = () => {
             >
               Real time collaboration<br />with your team
             </motion.h2>
-            <motion.p 
+            <motion.p
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
@@ -257,7 +257,7 @@ const LandingPage: React.FC = () => {
             </motion.p>
           </div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -267,7 +267,7 @@ const LandingPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-sm">Case Law Analysis</h3>
               <div className="flex items-center space-x-2">
-                {[1,2,3,4].map((i) => (
+                {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="w-7 h-7 bg-gray-200 rounded-full"></div>
                 ))}
               </div>
@@ -284,7 +284,7 @@ const LandingPage: React.FC = () => {
 
       <section id="features" className="py-16 px-6 lg:px-8 bg-white">
         <div className="max-w-6xl mx-auto">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -299,7 +299,7 @@ const LandingPage: React.FC = () => {
             </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial="initial"
             whileInView="animate"
             viewport={{ once: true }}
@@ -309,7 +309,7 @@ const LandingPage: React.FC = () => {
             {features.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <motion.div 
+                <motion.div
                   key={i}
                   variants={fadeIn}
                   className="border border-black/10 rounded-lg p-6 hover:border-black/30 hover:shadow-lg transition-all group cursor-pointer bg-white"
@@ -329,7 +329,7 @@ const LandingPage: React.FC = () => {
 
       <section className="py-16 px-6 lg:px-8 bg-gray-50">
         <div className="max-w-6xl mx-auto text-center">
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -338,7 +338,7 @@ const LandingPage: React.FC = () => {
           >
             Also available on your phone
           </motion.h2>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -348,14 +348,14 @@ const LandingPage: React.FC = () => {
             Access legal intelligence anywhere. Query statutes, compare sections, and research case law on any device with seamless synchronization.
           </motion.p>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.3 }}
             className="flex justify-center items-center gap-4 flex-wrap"
           >
-            {[1,2,3].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="w-48 h-96 bg-white rounded-2xl border border-black/10 shadow-lg"></div>
             ))}
           </motion.div>
@@ -418,7 +418,7 @@ const LandingPage: React.FC = () => {
 
       <section className="py-16 px-6 lg:px-8 bg-black text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -427,7 +427,7 @@ const LandingPage: React.FC = () => {
           >
             Get SamvidhanAI for free,<br />Boost your productivity today
           </motion.h2>
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -436,12 +436,13 @@ const LandingPage: React.FC = () => {
           >
             Start accessing India's comprehensive legal intelligence platform. Query in English or Hindi, compare IPC and BNS provisions, and research with verified citations.
           </motion.p>
-          <motion.button 
+          <motion.button
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.3 }}
             className="px-7 py-3 bg-white text-black text-sm font-medium hover:bg-white/90 transition-all cursor-pointer rounded"
+            onClick={() => router.push('/auth/register')}
           >
             Sign Up
           </motion.button>
