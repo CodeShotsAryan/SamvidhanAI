@@ -54,7 +54,7 @@ class SarvamService:
             'file': ('audio.webm', audio_file_content, 'audio/webm')
         }
         data = {
-            "model": "saaras:v1"
+            "model": "saaras:v2.5"
         }
         headers = {
             "api-subscription-key": self.api_key
