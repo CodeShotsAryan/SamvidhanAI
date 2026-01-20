@@ -1,27 +1,32 @@
-services:
-  server:
-    build: ./server
-    container_name: samvidhan_server
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - postgres
-    volumes:
-      - ./server/data:/app/data
+version: '3.8'
 
+services:
   postgres:
-    image: postgres:15-alpine
-    container_name: samvidhan_postgres
-    ports:
-      - "5432:5432"
+    image: postgres:16
+    container_name: samvidhan-db
+    restart: always
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: samvidhan_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./samvidhan_db_backup.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: samvidhan-backend
+    restart: always
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
 
 volumes:
   postgres_data:
