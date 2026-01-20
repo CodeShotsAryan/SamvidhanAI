@@ -244,7 +244,6 @@ export default function Dashboard() {
     const [authLoading, setAuthLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
-    const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
     // Audio & Graph State
@@ -857,9 +856,8 @@ export default function Dashboard() {
                     isOpen={graphOpen}
                     onClose={() => setGraphOpen(false)}
                     title="Legal Knowledge Graph"
-                    content={graphContent}
                 >
-                    <LegalGraph content={graphContent} />
+                    <LegalGraph messageContent={graphContent} />
                 </GraphDrawer>
             </motion.main>
         </motion.div>
