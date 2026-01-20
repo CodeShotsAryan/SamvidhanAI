@@ -1,10 +1,12 @@
 "use client"
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut } from 'lucide-react';
+import { Menu, X, Plus, Search, MessageSquare, Scale, Gavel, Paperclip, FileText, Book, Building2, Globe, Briefcase, User, Square, ArrowUp, LogOut, MessageCircleCode, Trash2 } from 'lucide-react';
+import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
+import { renderMarkdown } from '@/src/lib/markdown';
 import {
     PromptInput,
     PromptInputTextarea,
@@ -177,20 +179,23 @@ export default function Dashboard() {
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedConversation, setSelectedConversation] = useState<number | null>(null);
-    const [conversations, setConversations] = useState<Conversation[]>([
-        { id: 1, title: 'IPC Section 302 vs BNS 103', date: '2 hours ago', messages: [] },
-        { id: 2, title: 'Corporate Law Compliance', date: 'Yesterday', messages: [] },
-        { id: 3, title: 'Environmental Regulations 2024', date: '2 days ago', messages: [] },
-        { id: 4, title: 'Supreme Court IT Act Judgments', date: '3 days ago', messages: [] },
-        { id: 5, title: 'Legal Document Summary', date: '1 week ago', messages: [] },
-    ]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<SDKMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [conversationsLoading, setConversationsLoading] = useState(false);
     const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; size: number }[]>([]);
     const [user, setUser] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to bottom when messages change
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     // Check authentication and fetch user data
     useEffect(() => {
@@ -209,6 +214,8 @@ export default function Dashboard() {
                 });
                 setUser(response.data);
                 setAuthLoading(false);
+                // Fetch conversations after auth succeeds
+                fetchConversations(token);
             } catch (error) {
                 console.error('Auth error:', error);
                 localStorage.removeItem('token');
@@ -218,6 +225,83 @@ export default function Dashboard() {
 
         checkAuth();
     }, [router]);
+
+    // Fetch user's conversations from backend
+    const fetchConversations = async (token?: string) => {
+        const authToken = token || localStorage.getItem('token');
+        if (!authToken) return;
+
+        setConversationsLoading(true);
+        try {
+            const response = await axios.get(API_ENDPOINTS.conversations.list, {
+                headers: { Authorization: `Bearer ${authToken}` },
+            });
+            setConversations(response.data);
+        } catch (error) {
+            console.error('Error fetching conversations:', error);
+        } finally {
+            setConversationsLoading(false);
+        }
+    };
+
+    // Create new conversation in backend
+    const createConversation = async (title: string) => {
+        const token = localStorage.getItem('token');
+        if (!token) return null;
+
+        try {
+            const response = await axios.post(
+                API_ENDPOINTS.conversations.create,
+                {
+                    title: title.slice(0, 50),
+                    domain_filter: selectedDomain,
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+            setConversations(prev => [response.data, ...prev]);
+            return response.data.id;
+        } catch (error) {
+            console.error('Error creating conversation:', error);
+            return null;
+        }
+    };
+
+    // Save message to backend
+    const saveMessage = async (conversationId: number, role: string, content: string, sources?: any[]) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            await axios.post(
+                API_ENDPOINTS.conversations.saveMessage(conversationId),
+                { role, content, sources: sources || [] },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+        } catch (error) {
+            console.error('Error saving message:', error);
+        }
+    };
+
+    // Load conversation messages from backend
+    const loadConversation = async (conversationId: number) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        setIsLoading(true);
+        try {
+            const response = await axios.get(
+                API_ENDPOINTS.conversations.get(conversationId),
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setMessages(response.data.messages);
+        } catch (error) {
+            console.error('Error loading conversation:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -247,40 +331,14 @@ export default function Dashboard() {
         'Draft a legal notice for breach of contract',
     ];
 
-    useEffect(() => {
-        if (selectedConversation !== null) {
-            const conv = conversations.find(c => c.id === selectedConversation);
-            if (conv) {
-                setMessages(conv.messages);
-            }
-        }
-    }, [selectedConversation, conversations]);
-
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-    const createNewConversation = (firstMessage: string) => {
-        const newId = Math.max(...conversations.map(c => c.id), 0) + 1;
-        const newConv: Conversation = {
-            id: newId,
-            title: firstMessage.slice(0, 50),
-            date: 'Just now',
-            messages: [],
-        };
-        setConversations(prev => [newConv, ...prev]);
-        setSelectedConversation(newId);
-        return newId;
-    };
-
-    const updateConversationMessages = (convId: number, newMessages: SDKMessage[]) => {
-        setConversations(prev => prev.map(conv =>
-            conv.id === convId ? { ...conv, messages: newMessages } : conv
-        ));
-    };
-
-    const handleSuggestionClick = (suggestion: string) => {
+    const handleSuggestionClick = async (suggestion: string) => {
         let convId = selectedConversation;
         if (convId === null) {
-            convId = createNewConversation(suggestion);
+            convId = await createConversation(suggestion);
+            if (!convId) return;
+            setSelectedConversation(convId);
         }
 
         const userMsg: SDKMessage = {
@@ -291,34 +349,68 @@ export default function Dashboard() {
 
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
-        updateConversationMessages(convId, newMessages);
         setIsLoading(true);
 
-        setTimeout(() => {
+        // Save user message to backend
+        await saveMessage(convId, 'user', suggestion);
+
+        // Call RAG API for AI response
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(
+                API_ENDPOINTS.chat,
+                {
+                    message: suggestion,
+                    conversation_id: convId,
+                    domain: selectedDomain
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
             const aiMsg: SDKMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: `Here is a preliminary analysis of "${suggestion}":\n\n[Detailed legal analysis would appear here based on RAG retrieval from BNS/IPC database...]\n\nSources:\n1. Bhartiya Nyaya Sanhita, 2023\n2. Supreme Court Case Law DB`,
+                content: response.data.response,
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
-            updateConversationMessages(convId!, finalMessages);
+
+            // Save assistant message to backend
+            await saveMessage(convId!, 'assistant', aiMsg.content, response.data.sources);
+
+            // Refresh conversations list
+            fetchConversations();
+        } catch (error) {
+            console.error('Error getting AI response:', error);
+            const errorMsg: SDKMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+            };
+            setMessages([...newMessages, errorMsg]);
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
     };
 
-    const handleSubmit = (message: { text: string; files?: any[] }) => {
+    const handleSubmit = async (message: { text: string; files?: any[] }) => {
         if (!message.text.trim()) return;
 
         let convId = selectedConversation;
+
+        // Create new conversation if none selected
         if (convId === null) {
-            convId = createNewConversation(message.text);
+            convId = await createConversation(message.text);
+            if (!convId) return;
+            setSelectedConversation(convId);
         }
 
         const fileData = message.files?.map((f: any) => ({
             name: f.name,
             type: f.type,
-            size: f.size
+            size: f.size,
         })) || [];
 
         const userMsg: SDKMessage = {
@@ -330,20 +422,50 @@ export default function Dashboard() {
 
         const newMessages = [...messages, userMsg];
         setMessages(newMessages);
-        updateConversationMessages(convId, newMessages);
         setIsLoading(true);
 
-        setTimeout(() => {
+        // Save user message to backend
+        await saveMessage(convId, 'user', message.text);
+
+        // Call RAG API for AI response
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.post(
+                API_ENDPOINTS.chat,
+                {
+                    message: message.text,
+                    conversation_id: convId,
+                    domain: selectedDomain
+                },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
             const aiMsg: SDKMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: `Processing your query regarding: "${message.text}"...\n\nAccording to the relevant sections of the Bhartiya Nyaya Sanhita (BNS) and associated case law:\n\n1. Section Analysis...\n2. Key Precedents...\n\nPlease consult a legal professional for specific advice.`,
+                content: response.data.response,
             };
             const finalMessages = [...newMessages, aiMsg];
             setMessages(finalMessages);
-            updateConversationMessages(convId!, finalMessages);
+
+            // Save assistant message to backend
+            await saveMessage(convId!, 'assistant', aiMsg.content, response.data.sources);
+
+            // Refresh conversations list
+            fetchConversations();
+        } catch (error) {
+            console.error('Error getting AI response:', error);
+            const errorMsg: SDKMessage = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: 'Sorry, I encountered an error processing your request. Please try again.',
+            };
+            setMessages([...newMessages, errorMsg]);
+        } finally {
             setIsLoading(false);
-        }, 1500);
+        }
     };
 
 
@@ -359,6 +481,44 @@ export default function Dashboard() {
 
     const handleConversationClick = (id: number) => {
         setSelectedConversation(id);
+        loadConversation(id);
+        // Close sidebar on mobile after selecting conversation
+        if (window.innerWidth < 1024) {
+            setSidebarOpen(false);
+        }
+    };
+
+    const openDeleteModal = (id: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setConversationToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!conversationToDelete) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            await axios.delete(API_ENDPOINTS.conversations.delete(conversationToDelete), {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Remove from local state
+            setConversations(prev => prev.filter(conv => conv.id !== conversationToDelete));
+
+            // If deleted conversation was selected, clear selection
+            if (selectedConversation === conversationToDelete) {
+                setSelectedConversation(null);
+                setMessages([]);
+            }
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+        } finally {
+            setDeleteModalOpen(false);
+            setConversationToDelete(null);
+        }
     };
 
     // Show loading while checking auth
@@ -396,7 +556,7 @@ export default function Dashboard() {
                 <div className="p-3 min-w-[16rem]">
                     <button
                         onClick={handleNewQuery}
-                        className="w-full flex items-center justify-center gap-2 bg-white text-black py-2.5 px-4 rounded-lg hover:bg-zinc-100 transition-opacity duration-200 cursor-pointer font-medium text-sm"
+                        className="w-full flex items-center justify-center gap-2 bg-white text-black py-2 my-4 px-4 rounded-lg hover:bg-zinc-100 transition-opacity duration-200 cursor-pointer font-medium text-sm"
                     >
                         <Plus className="w-4 h-4" />
                         New Query
@@ -408,22 +568,30 @@ export default function Dashboard() {
                         Research History
                     </div>
                     {conversations.map((conv) => (
-                        <button
+                        <div
                             key={conv.id}
-                            onClick={() => handleConversationClick(conv.id)}
-                            className={`w-full text-left p-3 rounded-lg mb-2 transition-opacity duration-200 group ${selectedConversation === conv.id
+                            className={`w-full group relative flex items-center p-3 rounded-lg mb-2 transition-all duration-200 cursor-pointer ${selectedConversation === conv.id
                                 ? 'bg-zinc-800 text-white'
                                 : 'text-zinc-300 hover:bg-zinc-900 hover:text-white'
                                 }`}
+                            onClick={() => handleConversationClick(conv.id)}
                         >
-                            <div className="flex items-start gap-2">
-                                <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" />
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                                <MessageCircleCode className="w-4 h-4 mt-0.5 flex-shrink-0 opacity-70" />
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-medium truncate">{conv.title}</div>
                                     <div className="text-xs opacity-60 mt-0.5">{conv.date}</div>
                                 </div>
                             </div>
-                        </button>
+                            <button
+                                onClick={(e) => openDeleteModal(conv.id, e)}
+                                className="relative z-10 p-1.5 hover:bg-zinc-700 rounded-md transition-all duration-200 text-zinc-400 hover:text-rose-400 shrink-0"
+                                aria-label="Delete conversation"
+                                type="button"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
                     ))}
                 </div>
 
@@ -541,26 +709,116 @@ export default function Dashboard() {
                             </div>
                         ) : (
                             <div className="space-y-8 pb-24">
-                                {messages.map((m) => (
-                                    <Message
-                                        key={m.id}
-                                        from={m.role === 'user' ? 'user' : 'assistant'}
-                                    >
-                                        <MessageContent className="text-sm lg:text-base">
-                                            {m.content}
-                                            {m.files && m.files.length > 0 && (
-                                                <div className="mt-2 flex flex-wrap gap-2">
-                                                    {m.files.map((file, idx) => (
-                                                        <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs text-zinc-700">
-                                                            <FileText className="w-3 h-3" />
-                                                            <span className="font-medium">{file.name}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </MessageContent>
-                                    </Message>
-                                ))}
+                                {messages.map((m) => {
+                                    const isAssistant = m.role === 'assistant';
+                                    let layeredContent = null;
+
+                                    if (isAssistant) {
+                                        try {
+                                            const parsed = JSON.parse(m.content);
+
+                                            // Check if it's a casual response (plain text)
+                                            if (parsed.casual) {
+                                                // Don't use layered format, will show as plain text
+                                                layeredContent = null;
+                                            } else {
+                                                // Handle NEW backend keys: law, examples, simple_answer
+                                                const law = parsed.law;
+                                                const examples = parsed.examples;
+                                                const answer = parsed.simple_answer;
+
+                                                if (law || examples || answer) {
+                                                    layeredContent = {
+                                                        law: law,
+                                                        examples: examples,
+                                                        answer: answer
+                                                    };
+                                                }
+                                            }
+                                        } catch (e) {
+                                            // Not JSON, fallback to plain text
+                                            layeredContent = null;
+                                        }
+                                    }
+
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className={`p-4 rounded-2xl ${m.role === 'user'
+                                                ? 'bg-zinc-100 ml-auto max-w-[85%]'
+                                                : 'bg-white mr-auto max-w-[95%]'
+                                                }`}
+                                        >
+                                            <div className="text-sm lg:text-base">
+                                                {layeredContent ? (
+                                                    <div className="space-y-4 w-full">
+                                                        {layeredContent.law && (
+                                                            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 shadow-sm">
+                                                                <div className="flex items-center gap-2 mb-3 text-zinc-900 font-semibold text-sm">
+                                                                    <Scale className="w-4 h-4 text-zinc-600" /> The Law
+                                                                </div>
+                                                                <div
+                                                                    className="text-zinc-800 leading-relaxed"
+                                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.law) }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {layeredContent.examples && (
+                                                            <div className="bg-white border border-zinc-100 rounded-xl p-4 shadow-sm">
+                                                                <div className="flex items-center gap-2 mb-3 text-zinc-800 font-semibold text-sm">
+                                                                    <Book className="w-4 h-4 text-zinc-600" /> Real Examples
+                                                                </div>
+                                                                <div
+                                                                    className="text-zinc-700 leading-relaxed"
+                                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.examples) }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        {layeredContent.answer && (
+                                                            <div className="bg-black border border-black rounded-xl p-5 shadow-xl">
+                                                                <div className="flex items-center gap-2 mb-3 text-white/90 font-semibold text-sm">
+                                                                    <MessageSquare className="w-4 h-4 text-white/70" /> Simple Explanation
+                                                                </div>
+                                                                <div
+                                                                    className="text-white leading-relaxed"
+                                                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(layeredContent.answer) }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="whitespace-pre-wrap leading-relaxed">
+                                                        {(() => {
+                                                            // Try to parse as JSON to extract casual response
+                                                            try {
+                                                                const parsed = JSON.parse(m.content);
+                                                                if (parsed.casual) {
+                                                                    return parsed.casual;
+                                                                }
+                                                                // If JSON but no casual key, show as plain text
+                                                                return m.content;
+                                                            } catch (e) {
+                                                                // Not JSON, show as plain text
+                                                                return m.content;
+                                                            }
+                                                        })()}
+                                                    </div>
+                                                )}
+
+                                                {m.files && m.files.length > 0 && (
+                                                    <div className="mt-4 flex flex-wrap gap-2">
+                                                        {m.files.map((file, idx) => (
+                                                            <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 rounded-lg text-xs text-zinc-700">
+                                                                <FileText className="w-3 h-3" />
+                                                                <span className="font-medium">{file.name}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                                 {isLoading && (
                                     <Message from="assistant">
                                         <MessageContent>
@@ -568,6 +826,7 @@ export default function Dashboard() {
                                         </MessageContent>
                                     </Message>
                                 )}
+                                <div ref={messagesEndRef} />
                             </div>
                         )}
                     </div>
@@ -620,6 +879,15 @@ export default function Dashboard() {
                         onClick={() => setSidebarOpen(false)}
                     />
                 )}
+
+                <DeleteConfirmationModal
+                    isOpen={deleteModalOpen}
+                    onClose={() => {
+                        setDeleteModalOpen(false);
+                        setConversationToDelete(null);
+                    }}
+                    onConfirm={confirmDelete}
+                />
             </main>
         </div>
     );

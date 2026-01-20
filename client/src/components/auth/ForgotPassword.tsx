@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from "react";
+import Image from "next/image";
 import api from "../../lib/api";
 import { Loader2, Mail, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
@@ -21,9 +22,7 @@ const ForgotPassword = () => {
         setError("");
 
         try {
-            await api.post("/auth/forgot-password", null, {
-                params: { email }
-            });
+            await api.post("/api/auth/forgot-password", { email });
             setSuccess(true);
             setTimeout(() => {
                 router.push(`/auth/reset-password?email=${encodeURIComponent(email)}`);
@@ -51,9 +50,10 @@ const ForgotPassword = () => {
 
     return (
         <div className="min-h-screen flex">
+            {/* Left side - Form */}
             <div className="w-full md:w-1/2 bg-white px-6 py-10 flex flex-col justify-center">
                 <div className="w-full max-w-md mx-auto">
-                    <h1 className="text-4xl font-bold text-slate-900 mb-2">SamvidhanAI</h1>
+                    <Image src="/loogoo.png" alt="SamvidhanAI" width={180} height={48} className="object-contain mb-2" />
                     <p className="text-slate-500 mb-6 text-sm">Enter your email to receive a password reset code</p>
 
                     {error && <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 mb-4">{error}</div>}
@@ -69,6 +69,8 @@ const ForgotPassword = () => {
                     <p className="pt-5 text-center text-sm text-slate-500">Remember your password? <Link href="/auth/login" className="font-semibold text-black hover:underline">Sign in</Link></p>
                 </div>
             </div>
+
+            {/* Right side - Image Slider */}
             <AuthImageSlider />
         </div>
     );

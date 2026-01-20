@@ -2,7 +2,7 @@ import os
 import re
 from typing import List, Dict
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_mistralai import MistralAIEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone
 from dotenv import load_dotenv
@@ -12,7 +12,7 @@ from uuid import uuid4
 load_dotenv()
 
 # Check keys
-print("Mistral API:", os.environ.get("MISTRAL_API_KEY"))
+print("Google API:", os.environ.get("GOOGLE_API_KEY"))
 print("Pinecone API:", os.environ.get("PINECONE_API_KEY"))
 
 # Define Paths
@@ -22,17 +22,19 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 
 def chunk_text_by_section(text: str, act_name: str, domain: str) -> List[Dict]:
     """
-    Intelligent splitting by 'Section X'.
+    Intelligent splitting by 'Section X' with size limits.
     """
     pattern = r"(Section\s+\d+[A-Z]*)"
     splits = re.split(pattern, text)
     chunks = []
+    MAX_CHUNK_SIZE = 8000  # Keep well under 40KB metadata limit
 
     # Handle Preamble
     if splits[0].strip():
+        preamble_text = splits[0].strip()[:MAX_CHUNK_SIZE]  # Truncate if too long
         chunks.append(
             {
-                "text": splits[0].strip(),
+                "text": preamble_text,
                 "metadata": {"act": act_name, "section": "Preamble", "domain": domain},
             }
         )
@@ -42,6 +44,11 @@ def chunk_text_by_section(text: str, act_name: str, domain: str) -> List[Dict]:
         header = splits[i]
         body = splits[i + 1] if i + 1 < len(splits) else ""
         full_chunk = f"{header}\n{body}".strip()
+
+        # Truncate if too long
+        if len(full_chunk) > MAX_CHUNK_SIZE:
+            full_chunk = full_chunk[:MAX_CHUNK_SIZE] + "... [truncated]"
+
         sec_num = header.replace("Section", "").strip()
 
         chunks.append(
@@ -61,10 +68,14 @@ def ingest_data():
     index_name = os.environ.get("PINECONE_INDEX", "samvidhan")
     index = pc.Index(index_name)
 
-    # Initialize embeddings
-    embeddings = MistralAIEmbeddings(model="mistral-embed")
-
-    # Initialize vector store
+    # Initialize embeddings with Google Gemini (768 dimensions)
+    print("Initializing Google Gemini embeddings...")
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/embedding-001",
+        google_api_key=os.environ.get("GOOGLE_API_KEY"),
+        task_type="retrieval_document",
+        max_retries=1,
+    )  # Initialize vector store
     vector_store = PineconeVectorStore(embedding=embeddings, index=index)
 
     domain_map = {
@@ -101,7 +112,7 @@ def ingest_data():
 
                 for chunk in file_chunks:
                     # Create LangChain Document with metadata
-                    from langchain.schema import Document
+                    from langchain_core.documents import Document
 
                     doc = Document(
                         page_content=chunk["text"], metadata=chunk["metadata"]
@@ -117,7 +128,7 @@ def ingest_data():
                     file_chunks = chunk_text_by_section(raw_text, filename, domain)
 
                     for chunk in file_chunks:
-                        from langchain.schema import Document
+                        from langchain_core.documents import Document
 
                         doc = Document(
                             page_content=chunk["text"], metadata=chunk["metadata"]
