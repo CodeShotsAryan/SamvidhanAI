@@ -1,5 +1,5 @@
 import React from 'react';
-import { Book, MessageSquare, FileText, ExternalLink } from 'lucide-react';
+import { Book, MessageSquare, FileText, ExternalLink, Volume2, Square, GitGraph } from 'lucide-react';
 import Image from 'next/image';
 import { renderMarkdown } from '@/src/lib/markdown';
 import { Message, MessageContent } from '../ai-elements/message';
@@ -18,9 +18,12 @@ interface MessageListProps {
     messages: SDKMessage[];
     isLoading: boolean;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
+    onPlayAudio?: (text: string, id: string) => void;
+    playingMessageId?: string | null;
+    onViewGraph?: (content: string) => void;
 }
 
-export default function MessageList({ messages, isLoading, messagesEndRef }: MessageListProps) {
+export default function MessageList({ messages, isLoading, messagesEndRef, onPlayAudio, playingMessageId, onViewGraph }: MessageListProps) {
     return (
         <div className="space-y-8 pb-24">
             {messages.map((m) => {
@@ -175,6 +178,30 @@ export default function MessageList({ messages, isLoading, messagesEndRef }: Mes
                                                 <span className="font-medium">{file.name}</span>
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+
+                                {isAssistant && (
+                                    <div className="mt-4 flex items-center gap-2 pt-2 border-t border-zinc-50">
+                                        <button
+                                            onClick={() => onPlayAudio?.(m.content, m.id)}
+                                            className={`p-1.5 rounded-md hover:bg-zinc-100 transition-colors ${playingMessageId === m.id ? 'text-blue-600 bg-blue-50' : 'text-zinc-400'
+                                                }`}
+                                            title={playingMessageId === m.id ? "Stop Audio" : "Listen to Analysis"}
+                                        >
+                                            {playingMessageId === m.id ? (
+                                                <Square className="w-4 h-4 fill-current" />
+                                            ) : (
+                                                <Volume2 className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => onViewGraph?.(m.content)}
+                                            className="p-1.5 rounded-md hover:bg-zinc-100 transition-colors text-zinc-400"
+                                            title="View Knowledge Graph"
+                                        >
+                                            <GitGraph className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 )}
                             </div>

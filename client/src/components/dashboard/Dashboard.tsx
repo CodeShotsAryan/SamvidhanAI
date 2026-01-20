@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Menu, X, Search, Square, ArrowUp, FileText, Paperclip, User2Icon } from 'lucide-react';
+import { Menu, X, Search, Square, ArrowUp, FileText, Paperclip, User2Icon, Mic, StopCircle } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import Sidebar from './Sidebar';
 import WelcomeScreen from './WelcomeScreen';
 import MessageList from './MessageList';
+import GraphDrawer from './GraphDrawer';
+import LegalGraph from './LegalGraph';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
 import {
@@ -97,6 +99,9 @@ function CompactAttachment({ file }: { file: any }) {
 function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGenerating: boolean; onSubmit: (msg: { text: string; files?: any[] }) => void; stopGeneration: () => void }) {
     const controller = usePromptInputController();
     const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+    const chunksRef = React.useRef<Blob[]>([]);
 
     useEffect(() => {
         if (!hasLoadedFromStorage) {
@@ -127,6 +132,59 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
         localStorage.removeItem('samvidhan-draft-prompt');
     };
 
+    const handleMicClick = async () => {
+        if (isRecording) {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                mediaRecorderRef.current = mediaRecorder;
+                chunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        chunksRef.current.push(e.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('file', blob, 'recording.webm');
+
+                    try {
+                        const token = localStorage.getItem('token');
+                        controller.textInput.setInput('Sanket is Listening...'); // Feedback
+                        const response = await axios.post(
+                            API_ENDPOINTS.speech.stt,
+                            formData,
+                            {
+                                headers: {
+                                    'Content-Type': 'multipart/form-data',
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            }
+                        );
+                        controller.textInput.setInput(response.data.transcript);
+                    } catch (error) {
+                        console.error('STT Error:', error);
+                        controller.textInput.setInput('Error in speech recognition.');
+                    }
+
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                setIsRecording(true);
+            } catch (err) {
+                console.error("Error accessing mic:", err);
+                alert("Could not access microphone.");
+            }
+        }
+    };
+
     return (
         <>
             <PromptInputAttachments>
@@ -136,13 +194,20 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 <PromptInputTextarea
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && !isGenerating && (e.preventDefault(), handleSubmit())}
                     disabled={isGenerating}
-                    placeholder={isGenerating ? "Generating..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')"}
+                    placeholder={isGenerating ? "Generating..." : (isRecording ? "Listening..." : "Ask a legal question... (e.g. 'Compare IPC 420 vs BNS 318')")}
                     className="bg-transparent text-black placeholder:text-zinc-400 resize-none min-h-[44px] max-h-[200px] text-sm lg:text-base disabled:opacity-50 py-2.5"
                 />
             </PromptInputBody>
             <PromptInputFooter className="bg-white border-t border-zinc-100">
                 <PromptInputTools>
-                    <User2Icon className="w-4 h-4" />
+                    <AttachButton />
+                    <button
+                        onClick={handleMicClick}
+                        className={`text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-all duration-200 p-2 rounded-md ${isRecording ? 'text-red-500 bg-red-50 hover:bg-red-100 animate-pulse' : ''}`}
+                        title="Voice Input"
+                    >
+                        {isRecording ? <StopCircle className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
                 </PromptInputTools>
                 {isGenerating ? (
                     <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2 transition-opacity duration-200">
@@ -179,7 +244,73 @@ export default function Dashboard() {
     const [authLoading, setAuthLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
+    const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    // Audio & Graph State
+    const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+    const audioRef = React.useRef<HTMLAudioElement | null>(null);
+    const [graphOpen, setGraphOpen] = useState(false);
+    const [graphContent, setGraphContent] = useState('');
+
+    const handleViewGraph = (content: string) => {
+        setGraphContent(content);
+        setGraphOpen(true);
+    };
+
+    const playAudio = async (text: string, messageId: string) => {
+        if (playingMessageId === messageId) {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+            setPlayingMessageId(null);
+            return;
+        }
+
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
+        }
+
+        try {
+            setPlayingMessageId(messageId);
+            const token = localStorage.getItem('token');
+
+            let textToRead = text;
+            try {
+                const parsed = JSON.parse(text);
+                if (parsed.simple_answer) textToRead = parsed.simple_answer;
+                else if (parsed.simpleanswer) textToRead = parsed.simpleanswer;
+                else if (parsed.casual) textToRead = parsed.casual;
+                else if (parsed.law) textToRead = parsed.law;
+            } catch (e) { }
+
+            const cleanText = textToRead.replace(/[*#_`]/g, '').replace(/\[\d+\]/g, '');
+            const finalPayload = cleanText.length > 490 ? cleanText.substring(0, 490) + "..." : cleanText;
+
+            const response = await axios.post(
+                API_ENDPOINTS.speech.tts,
+                { text: finalPayload },
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            const audio = new Audio(`data:audio/wav;base64,${response.data.audio}`);
+            audioRef.current = audio;
+            audio.onended = () => {
+                setPlayingMessageId(null);
+                audioRef.current = null;
+            };
+            audio.play();
+
+        } catch (error) {
+            console.error('TTS Error:', error);
+            setPlayingMessageId(null);
+            audioRef.current = null;
+        }
+    };
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -643,6 +774,9 @@ export default function Dashboard() {
                                         messages={messages}
                                         isLoading={isLoading}
                                         messagesEndRef={messagesEndRef}
+                                        onPlayAudio={playAudio}
+                                        playingMessageId={playingMessageId}
+                                        onViewGraph={handleViewGraph}
                                     />
                                 </motion.div>
                             )}
@@ -718,6 +852,15 @@ export default function Dashboard() {
                     }}
                     onConfirm={confirmDelete}
                 />
+
+                <GraphDrawer
+                    isOpen={graphOpen}
+                    onClose={() => setGraphOpen(false)}
+                    title="Legal Knowledge Graph"
+                    content={graphContent}
+                >
+                    <LegalGraph content={graphContent} />
+                </GraphDrawer>
             </motion.main>
         </motion.div>
     );

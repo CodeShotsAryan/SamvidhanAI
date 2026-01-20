@@ -23,6 +23,7 @@ class MessageCreate(BaseModel):
     content: str
     sources: Optional[List[dict]] = None
     citations: Optional[List[dict]] = None
+    related_cases: Optional[List[str]] = None
 
 
 class MessageResponse(BaseModel):
@@ -31,6 +32,7 @@ class MessageResponse(BaseModel):
     content: str
     sources: Optional[List[dict]] = None
     citations: Optional[List[dict]] = None
+    related_cases: Optional[List[str]] = None
     created_at: datetime
 
     class Config:
@@ -192,6 +194,7 @@ def add_message(
         content=message.content,
         sources=message.sources,
         citations=message.citations,
+        related_cases=message.related_cases,
     )
     db.add(new_message)
 
