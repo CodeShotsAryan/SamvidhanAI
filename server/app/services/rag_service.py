@@ -7,6 +7,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory
 from dotenv import load_dotenv
 from groq import Groq
 import re
+import json
 from app.data.legal_mapping import get_mapping
 
 load_dotenv()
@@ -27,7 +28,6 @@ class RAGService:
         )
 
         self.chat = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-
         self.chat_histories = {}
 
     def get_chat_history(self, session_id: str = "default") -> ChatMessageHistory:
@@ -39,108 +39,49 @@ class RAGService:
         if session_id in self.chat_histories:
             self.chat_histories[session_id].clear()
 
-    def is_legal_question(self, query: str) -> bool:
-        query_lower = query.lower().strip()
+    def classify_query(self, query: str) -> str:
+        """Use Groq to intelligently classify query intent"""
+        classification_prompt = """You are a query classifier. Classify the user's query into ONE category only.
 
-        casual_patterns = [
-            "hi",
-            "hello",
-            "hey",
-            "thanks",
-            "thank you",
-            "ok",
-            "okay",
-            "yes",
-            "no",
-            "bye",
-            "good",
-            "great",
-            "nice",
-            "cool",
-            "who are you",
-            "what filter",
-            "which filter",
-            "current filter",
-            "selected filter",
-            "filter i",
-        ]
+Categories:
+- "legal" - Questions about laws, sections, acts, legal procedures, rights, crimes, penalties, court cases, legal advice
+- "casual" - Greetings (hi, hello, hey), thanks, goodbye, general chat, acknowledgments
+- "filter" - Questions about active filters, selected domains, current filter status
 
-        if any(
-            p in query_lower
-            for p in [
-                "what filter",
-                "which filter",
-                "filter i",
-                "filter have",
-                "selected filter",
-                "active filter",
-                "current filter",
-            ]
-        ):
-            return False
+Examples:
+"What is Section 420 IPC?" → legal
+"Hi there!" → casual
+"Thanks for the help" → casual
+"What filter is active?" → filter
+"Explain BNS Section 318" → legal
+"Can I file an FIR online?" → legal
 
-        if len(query_lower.split()) <= 3:
-            if any(pattern in query_lower for pattern in casual_patterns):
-                return False
+Query: {query}
 
-        legal_keywords = [
-            "section",
-            "act",
-            "law",
-            "legal",
-            "ipc",
-            "bns",
-            "bnss",
-            "bsa",
-            "court",
-            "case",
-            "rights",
-            "crime",
-            "punishment",
-            "bail",
-            "company",
-            "contract",
-            "property",
-            "cyber",
-            "data",
-            "privacy",
-            "how to",
-            "can i",
-            "is it",
-            "explain",
-            "difference",
-            "compare",
-            "penalty",
-            "fine",
-            "jail",
-            "arrest",
-            "fir",
-            "previous",
-            "earlier",
-            "before",
-            "last",
-            "above",
-            "context",
-            "what did",
-            "you said",
-            "you mentioned",
-        ]
+Respond with ONLY ONE WORD: legal, casual, or filter"""
 
-        if any(keyword in query_lower for keyword in legal_keywords):
-            if any(
-                p in query_lower
-                for p in ["what filter", "which filter", "current filter"]
-            ):
-                return False
-            return True
+        try:
+            response = self.chat.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                temperature=0.1,
+                max_tokens=10,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": classification_prompt.format(query=query),
+                    }
+                ],
+            )
 
-        if "?" in query:
-            return True
+            classification = response.choices[0].message.content.strip().lower()
 
-        if len(query_lower.split()) > 5:
-            return True
+            if classification in ["legal", "casual", "filter"]:
+                return classification
+            return "legal"
 
-        return False
+        except Exception as e:
+            print(f"Classification error: {e}")
+            return "legal"
 
     def retrieve_context(
         self, query: str, domain: str = None, n_results: int = 5
@@ -170,35 +111,28 @@ class RAGService:
     ) -> Dict[str, str]:
         chat_history = self.get_chat_history(session_id)
 
-        is_legal = self.is_legal_question(query)
+        query_type = self.classify_query(query)
 
         if len(chat_history.messages) > 14:
             chat_history.messages = chat_history.messages[-14:]
 
         history_text = ""
-        for msg in chat_history.messages:
-            role = "User" if msg.type == "human" else "SamvidhanAI"
+        for msg in chat_history.messages[-6:]:
+            role = "User" if msg.type == "human" else "Assistant"
             history_text += f"{role}: {msg.content}\n"
 
-        if not is_legal:
-            filter_status = f"You currently have the **{domain}** filter active." if domain else "You haven't selected any filter yet."
-            
-            system_prompt = f"""You are SamvidhanAI, a friendly legal assistant for Indian law.
+        if query_type == "casual":
+            system_prompt = """You are SamvidhanAI, a friendly and helpful legal assistant for Indian law.
 
-CURRENT FILTER STATUS: {filter_status}
+Respond naturally and warmly to casual messages. Keep it brief and conversational.
+Invite users to ask legal questions if appropriate."""
 
-The user just sent a casual message. Respond naturally and warmly.
-
-IMPORTANT: If the user asks about filters (like "what filter", "which filter", "current filter"), clearly tell them: "{filter_status}"
-
-Keep responses brief and friendly. Invite them to ask legal questions."""
-
-            user_prompt = f"""Previous Conversation:
+            user_prompt = f"""Conversation History:
 {history_text}
 
-User's Message: {query}
+User: {query}
 
-Respond warmly. If asking about filters, tell them clearly what filter is active."""
+Respond in a friendly, natural way."""
 
             try:
                 chat_history.add_user_message(query)
@@ -206,7 +140,7 @@ Respond warmly. If asking about filters, tell them clearly what filter is active
                 response = self.chat.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     temperature=0.7,
-                    max_tokens=150,
+                    max_tokens=100,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
@@ -220,72 +154,88 @@ Respond warmly. If asking about filters, tell them clearly what filter is active
 
             except Exception as e:
                 return {
-                    "casual": f"{filter_status} I'm here to help with any legal questions you have. What would you like to know?"
+                    "casual": "Hello! I'm SamvidhanAI, your legal assistant. How can I help you today?"
                 }
 
+        if query_type == "filter":
+            filter_status = (
+                f"You currently have the **{domain}** filter active, so I'll focus on {domain} related queries."
+                if domain
+                else "You haven't selected any specific filter, so I can help with questions across all areas of Indian law."
+            )
+
+            chat_history.add_user_message(query)
+            chat_history.add_ai_message(filter_status)
+
+            return {"casual": filter_status}
+
         context_str = ""
+        has_strong_context = bool(context and len(context) > 0)
+
         if context:
             for i, item in enumerate(context, 1):
                 meta = item["metadata"]
                 act_name = meta.get("act", "Unknown Act")
                 section = meta.get("section", "N/A")
                 context_str += f"\n[Source {i}: {act_name} | Section: {section}]\n{item['text']}\n{'=' * 50}\n"
-        else:
-            context_str = (
-                "No specific legal documents found in database for this query."
-            )
 
-        filter_context = f"ACTIVE FILTER: The user has selected the **{domain}** filter. Focus your response on this area of law." if domain else ""
+        filter_info = f"The user has selected **{domain}** filter." if domain else ""
 
-        system_prompt = f"""You are SamvidhanAI, a friendly legal assistant for Indian law.
+        system_prompt = f"""You are SamvidhanAI, a knowledgeable legal assistant for Indian law.
 
-IMPORTANT KNOWLEDGE:
-- Bharatiya Nyaya Sanhita (BNS) replaced Indian Penal Code (IPC) in 2023
-- Bharatiya Nagarik Suraksha Sanhita (BNSS) replaced CrPC in 2023
-- Bharatiya Sakshya Adhiniyam (BSA) replaced Indian Evidence Act in 2023
-- Example: IPC Section 420 (Cheating) is now BNS Section 318
+CRITICAL KNOWLEDGE:
+- BNS (Bharatiya Nyaya Sanhita) replaced IPC in 2023
+- BNSS (Bharatiya Nagarik Suraksha Sanhita) replaced CrPC in 2023
+- BSA (Bharatiya Sakshya Adhiniyam) replaced Evidence Act in 2023
 
-YOUR RESPONSE STYLE:
-1. Use SIMPLE, EVERYDAY language - explain like talking to a friend
-2. Avoid legal jargon - or explain it simply
-3. Be DETAILED and IN-DEPTH - don't give short answers
-4. Provide COMPLETE explanations with examples
-5. Use short sentences and simple words
-6. Be helpful and friendly
+RESPONSE GUIDELINES:
+1. Use simple, conversational language
+2. Explain legal terms in plain English/Hindi
+3. Provide detailed, thorough explanations
+4. Include real-world examples and scenarios
+5. Be accurate - if unsure, use general legal knowledge
+6. Use **bold** for key terms
 
-OUTPUT FORMAT (JSON ONLY):
+OUTPUT FORMAT (JSON):
 {{
-    "law": "The actual law/section. Quote it clearly. Explain what it means in simple words.",
-    "examples": "Real examples or court cases. How does this work in real life? Give detailed scenarios.",
-    "simple_answer": "Complete, detailed explanation in everyday language. What does this mean? What should the person do? Give step-by-step guidance if needed. Be thorough and helpful."
+    "law": "State the relevant law/section clearly. Explain what it means in simple terms.",
+    "examples": "Provide real-world examples, scenarios, or landmark cases that illustrate this law.",
+    "simple_answer": "Give a complete, detailed explanation in everyday language. Include practical guidance and next steps if relevant."
 }}
 
-RULES:
-1. BILINGUAL: If user asks in Hindi, respond in Hindi
-2. BE DETAILED: Give complete, in-depth answers (not just 1-2 lines)
-3. USE EXAMPLES: Always include real-life examples
-4. BE ACCURATE: Don't make up laws
-5. USE **BOLD** for important terms
-6. EXPLAIN FULLY: Don't assume user knows legal terms
+IMPORTANT:
+- If user asks in Hindi, respond in Hindi
+- Be thorough and detailed (not brief)
+- Ground responses in provided legal documents when available
+- Use general legal knowledge when specific documents aren't available
+- Never say "I don't have information" - provide helpful general guidance instead
 
-{filter_context}"""
+{filter_info}"""
 
-        user_prompt = f"""Legal Documents from Database:
+        context_instruction = ""
+        if has_strong_context:
+            context_instruction = f"""Legal Documents Retrieved:
 {context_str}
 
-Previous Conversation:
+Use these documents as primary sources. Cite them in your response."""
+        else:
+            context_instruction = "No specific documents found in database. Use your general knowledge of Indian law to provide a helpful, accurate response."
+
+        user_prompt = f"""{context_instruction}
+
+Conversation History:
 {history_text}
 
 User's Question: {query}
 
-Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly."""
+Provide a detailed, comprehensive response in JSON format."""
 
         try:
             chat_history.add_user_message(query)
 
             response = self.chat.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                temperature=0.3,
+                temperature=0.2,
                 max_tokens=2000,
                 response_format={"type": "json_object"},
                 messages=[
@@ -293,8 +243,6 @@ Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly."""
                     {"role": "user", "content": user_prompt},
                 ],
             )
-
-            import json
 
             content = response.choices[0].message.content
             result = json.loads(content)
@@ -309,7 +257,7 @@ Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly."""
                     comparison = mapping
                     break
 
-            ai_response = f"Law: {result.get('law', '')[:200]}...\nExamples: {result.get('examples', '')[:200]}...\nAnswer: {result.get('simple_answer', '')[:200]}..."
+            ai_response = f"Law: {result.get('law', '')[:200]}...\nExamples: {result.get('examples', '')[:200]}..."
             chat_history.add_ai_message(ai_response)
 
             if comparison:
@@ -318,10 +266,11 @@ Provide a DETAILED, IN-DEPTH response. Don't be brief - explain thoroughly."""
             return result
 
         except Exception as e:
+            print(f"Error generating answer: {e}")
             return {
-                "law": "Sorry, I couldn't find the exact law for this.",
-                "examples": "No examples available right now.",
-                "simple_answer": f"There was a technical issue: {str(e)}. Please try asking again.",
+                "law": "I encountered a technical issue processing your request.",
+                "examples": "Please try rephrasing your question or ask about a specific law or section.",
+                "simple_answer": "There was an error, but I'm here to help. Could you please rephrase your legal question?",
             }
 
 

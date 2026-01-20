@@ -799,19 +799,22 @@ export default function Dashboard() {
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <div className="whitespace-pre-wrap leading-relaxed">
-                                                            {(() => {
-                                                                try {
-                                                                    const parsed = JSON.parse(m.content);
-                                                                    if (parsed.casual) {
-                                                                        return parsed.casual;
+                                                        <div
+                                                            className="whitespace-pre-wrap leading-relaxed"
+                                                            dangerouslySetInnerHTML={{
+                                                                __html: renderMarkdown((() => {
+                                                                    try {
+                                                                        const parsed = JSON.parse(m.content);
+                                                                        if (parsed.casual) {
+                                                                            return parsed.casual;
+                                                                        }
+                                                                        return m.content;
+                                                                    } catch (e) {
+                                                                        return m.content;
                                                                     }
-                                                                    return m.content;
-                                                                } catch (e) {
-                                                                    return m.content;
-                                                                }
-                                                            })()}
-                                                        </div>
+                                                                })())
+                                                            }}
+                                                        />
                                                     )}
 
                                                     {m.sources && m.sources.length > 0 && (
