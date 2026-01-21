@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect } from 'react';
-import ReactFlow, {
+import {
+    ReactFlow,
     Controls,
     Background,
     useNodesState,
@@ -8,8 +9,8 @@ import ReactFlow, {
     Edge,
     Position,
     MarkerType,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { Scale, Gavel, FileText, AlertTriangle, Lightbulb, ArrowRightLeft, ScrollText } from 'lucide-react';
 
 interface LegalGraphProps {

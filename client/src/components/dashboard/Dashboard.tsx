@@ -694,7 +694,7 @@ export default function Dashboard() {
                 onDeleteConversation={openDeleteModal}
                 onLogout={handleLogout}
                 onSummarize={() => router.push('/dashboard/summarize')}
-                onCompare={() => router.push('/dashboard?view=compare')} // Mocked compare view or navigation
+                onCompare={() => router.push('/dashboard/compare')} // Mocked compare view or navigation
             />
 
             <motion.main

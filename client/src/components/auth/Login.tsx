@@ -4,12 +4,11 @@ import React, { useState } from "react";
 import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Mail, Scale, ChevronLeft } from "lucide-react";
+import { Loader2, Lock, Mail, Scale } from "lucide-react";
 import Input from "./Input";
 import AuthImageSlider from "./AuthImageSlider";
 import Image from "next/image";
 import { API_ENDPOINTS } from "@/src/lib/config";
-import { motion } from "framer-motion";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -44,110 +43,76 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#020617] text-white overflow-hidden">
-      <div className="w-full md:w-1/2 px-6 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-8 md:py-10 flex flex-col justify-center relative">
-        <div className="absolute top-8 left-8">
-          <Link href="/" className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm font-medium group">
-            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to Home
-          </Link>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md mx-auto"
-        >
-          <div className="flex items-center gap-2 mb-12">
-            <div className="w-8 h-8 bg-amber-500 rounded flex items-center justify-center">
-              <Scale className="text-black w-5 h-5" />
-            </div>
-            <span className="text-xl font-serif font-bold tracking-tight">SamvidhanAI</span>
+    <div className="min-h-screen flex bg-white">
+      <div className="w-full md:w-1/2 bg-white px-6 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-8 md:py-10 flex flex-col justify-center">
+        <div className="w-full max-w-md mx-auto">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Image src="/loogoo.png" alt="Logo" width={150} height={150} className="w-48 sm:w-56 h-auto object-contain" />
           </div>
 
-          <h1 className="text-3xl font-serif font-bold mb-2">Welcome Back</h1>
-          <p className="text-gray-400 mb-8 text-sm font-light">
-            Enter your credentials to access the legal intelligence platform.
+          <p className="text-zinc-600 mb-8 text-sm">
+            Welcome back! Login to your account
           </p>
 
           {error && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 mb-5"
-            >
+            <div className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-5">
               {error}
-            </motion.div>
+            </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Username or Email</label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
-                  <Mail size={18} />
-                </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="Advocate credentials..."
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-gray-600"
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Username or Email"
+              placeholder="username or email@company.com"
+              type="text"
+              required
+              icon={<Mail size={18} />}
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+
+            <Input
+              label="Password"
+              placeholder="••••••••"
+              type="password"
+              required
+              icon={<Lock size={18} />}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+
+            <div className="flex justify-end">
+              <Link href="/auth/forgot-password" className="text-sm text-zinc-700 hover:text-black font-medium transition-opacity duration-200">
+                Forgot password?
+              </Link>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <label className="text-xs font-bold uppercase tracking-widest text-gray-500">Password</label>
-                <Link href="/auth/forgot-password" className="text-xs text-amber-500/80 hover:text-amber-500 transition-colors font-bold">
-                  Recover Access
-                </Link>
-              </div>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
-                  <Lock size={18} />
-                </div>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-gray-600"
-                />
-              </div>
-            </div>
-
-            <motion.button
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
+            <button
               disabled={loading}
               type="submit"
-              className="w-full rounded-xl bg-amber-500 text-black py-4 text-sm font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-8 shadow-xl shadow-amber-500/10"
+              className="w-full rounded-xl bg-black text-white py-3 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-zinc-800 transition-opacity duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
               {loading ? (
                 <>
                   <Loader2 className="animate-spin w-4 h-4" />
-                  <span>Verifying Intelligence...</span>
+                  <span>Logging in...</span>
                 </>
               ) : (
-                <span>Access Dashboard</span>
+                <span>Login</span>
               )}
-            </motion.button>
+            </button>
           </form>
 
-          <p className="pt-10 text-center text-sm text-gray-500 font-light">
-            Unauthorized for counsel?{" "}
+          <p className="pt-6 text-center text-sm text-zinc-600">
+            Don&apos;t have an account?{" "}
             <Link
               href="/auth/register"
-              className="font-bold text-white hover:text-amber-500 transition-colors"
+              className="font-semibold text-black hover:text-zinc-700 transition-opacity duration-200"
             >
-              Apply for Access
+              Sign Up
             </Link>
           </p>
-        </motion.div>
+        </div>
       </div>
 
       <AuthImageSlider />
