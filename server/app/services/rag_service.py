@@ -15,6 +15,7 @@ load_dotenv()
 
 class RAGService:
     def __init__(self):
+        # Initialize Pinecone and other services silently
         pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
         index_name = os.environ.get("PINECONE_INDEX", "samvidhan")
         self.index = pc.Index(index_name)
@@ -78,8 +79,7 @@ Respond with ONLY ONE WORD: legal, casual, or filter"""
                 return classification
             return "legal"
 
-        except Exception as e:
-            print(f"Classification error: {e}")
+        except Exception:
             return "legal"
 
     def retrieve_context(
@@ -97,8 +97,7 @@ Respond with ONLY ONE WORD: legal, casual, or filter"""
             for doc in results:
                 citations.append({"text": doc.page_content, "metadata": doc.metadata})
             return citations
-        except Exception as e:
-            print(f"[!] RAG Fallback: Vector store error: {e}")
+        except Exception:
             return []
 
     def generate_answer(
@@ -308,8 +307,7 @@ Provide a detailed, comprehensive response in JSON format."""
 
             return result
 
-        except Exception as e:
-            print(f"Error generating answer: {e}")
+        except Exception:
             return {
                 "law": "I encountered a technical issue processing your request.",
                 "examples": "Please try rephrasing your question or ask about a specific law or section.",
@@ -365,8 +363,7 @@ Provide a detailed, comprehensive response in JSON format."""
                         return val[:3]
 
             return []
-        except Exception as e:
-            print(f"Error finding related cases: {e}")
+        except Exception:
             return []
 
 
