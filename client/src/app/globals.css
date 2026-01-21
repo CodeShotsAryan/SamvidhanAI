@@ -19,10 +19,6 @@ html {
   --color-navy: #0a1128;
 }
 
-.dark {
-  --color-background: #18181b;
-  --color-muted-foreground: #a1a1aa;
-}
 
 .font-cinzel {
   font-family: var(--font-cinzel), serif;
