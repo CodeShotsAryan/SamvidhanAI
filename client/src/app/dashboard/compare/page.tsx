@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { API_ENDPOINTS } from '@/src/lib/config';
-import { Search, ArrowLeft, AlertCircle, FileText } from 'lucide-react';
+import { Search, ArrowLeft, AlertCircle, FileText, Mic, StopCircle } from 'lucide-react';
 import Image from 'next/image';
 
 interface ComparisonData {
@@ -18,6 +18,61 @@ export default function ComparePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [comparison, setComparison] = useState<ComparisonData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isRecording, setIsRecording] = useState(false);
+    const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+    const chunksRef = React.useRef<Blob[]>([]);
+
+    const handleMicClick = async () => {
+        if (isRecording) {
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+        } else {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                mediaRecorderRef.current = mediaRecorder;
+                chunksRef.current = [];
+
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        chunksRef.current.push(e.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('file', blob, 'recording.webm');
+
+                    try {
+                        const token = localStorage.getItem('token');
+                        setSearchQuery('Sanket is Listening...');
+                        const response = await axios.post(
+                            API_ENDPOINTS.speech.stt,
+                            formData,
+                            {
+                                headers: {
+                                    'Content-Type': 'multipart/form-data',
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            }
+                        );
+                        setSearchQuery(response.data.transcript);
+                    } catch (error) {
+                        setError('Failed to process speech. Please try typing.');
+                        setSearchQuery('');
+                    }
+
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                setIsRecording(true);
+            } catch (err) {
+                alert("Could not access microphone.");
+            }
+        }
+    };
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) {
@@ -81,9 +136,16 @@ export default function ComparePage() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyPress={handleKeyPress}
-                                placeholder="Enter IPC or BNS section (e.g., IPC 302 or BNS 103)"
-                                className="w-full pl-10 pr-4 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm sm:text-base"
+                                placeholder={isRecording ? "Listening..." : "Enter IPC or BNS section (e.g., IPC 302 or BNS 103)"}
+                                className="w-full pl-10 pr-12 py-3 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent text-sm sm:text-base"
                             />
+                            <button
+                                onClick={handleMicClick}
+                                className={`absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors ${isRecording ? 'text-red-500 bg-red-50 hover:bg-red-100 animate-pulse' : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100'}`}
+                                title="Voice Input"
+                            >
+                                {isRecording ? <StopCircle className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                            </button>
                         </div>
                         <button
                             onClick={handleSearch}
