@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Menu, X, Search, Square, ArrowUp, FileText, Paperclip, User2Icon, Mic, StopCircle } from 'lucide-react';
+import { Menu, X, Search, Square, ArrowUp, Paperclip, Mic, StopCircle, UserCheck } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
@@ -169,7 +169,6 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                         );
                         controller.textInput.setInput(response.data.transcript);
                     } catch (error) {
-                        console.error('STT Error:', error);
                         controller.textInput.setInput('Error in speech recognition.');
                     }
 
@@ -179,7 +178,6 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                 mediaRecorder.start();
                 setIsRecording(true);
             } catch (err) {
-                console.error("Error accessing mic:", err);
                 alert("Could not access microphone.");
             }
         }
@@ -208,6 +206,7 @@ function PromptInputWrapper({ isGenerating, onSubmit, stopGeneration }: { isGene
                     >
                         {isRecording ? <StopCircle className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                     </button>
+                    <UserCheck className="w-4 h-4 text-zinc-400" />
                 </PromptInputTools>
                 {isGenerating ? (
                     <button onClick={stopGeneration} className="bg-zinc-100 text-black hover:bg-zinc-200 rounded-lg px-3 py-2 transition-opacity duration-200">
@@ -239,18 +238,24 @@ export default function Dashboard() {
     const [conversationsLoading, setConversationsLoading] = useState(false);
     const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; size: number }[]>([]);
     const [user, setUser] = useState<UserData | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [conversationToDelete, setConversationToDelete] = useState<number | null>(null);
-    const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
-    // Audio & Graph State
+    const [graphContent, setGraphContent] = useState('');
     const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
     const audioRef = React.useRef<HTMLAudioElement | null>(null);
     const [graphOpen, setGraphOpen] = useState(false);
-    const [graphContent, setGraphContent] = useState('');
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
 
     const handleViewGraph = (content: string) => {
         setGraphContent(content);
@@ -305,7 +310,6 @@ export default function Dashboard() {
             audio.play();
 
         } catch (error) {
-            console.error('TTS Error:', error);
             setPlayingMessageId(null);
             audioRef.current = null;
         }
@@ -334,7 +338,6 @@ export default function Dashboard() {
 
                 fetchConversations(token);
             } catch (error) {
-                console.error('Auth error:', error);
                 localStorage.removeItem('token');
                 router.push('/auth/login');
             }
@@ -366,7 +369,6 @@ export default function Dashboard() {
             });
             setConversations(response.data);
         } catch (error) {
-            console.error('Error fetching conversations:', error);
         } finally {
             setConversationsLoading(false);
         }
@@ -390,7 +392,6 @@ export default function Dashboard() {
             setConversations(prev => [response.data, ...prev]);
             return response.data.id;
         } catch (error) {
-            console.error('Error creating conversation:', error);
             return null;
         }
     };
@@ -406,7 +407,6 @@ export default function Dashboard() {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
         } catch (error) {
-            console.error('Error saving message:', error);
         }
     };
 
@@ -422,7 +422,6 @@ export default function Dashboard() {
             );
             setMessages(response.data.messages);
         } catch (error) {
-            console.error('Error loading conversation:', error);
         } finally {
             setIsLoading(false);
         }
@@ -462,7 +461,6 @@ export default function Dashboard() {
             );
             setMessages(response.data.messages || []);
         } catch (error) {
-            console.error('Error loading messages:', error);
         }
     };
 
@@ -530,7 +528,6 @@ export default function Dashboard() {
 
             fetchConversations();
         } catch (error) {
-            console.error('Error getting AI response:', error);
             const errorMsg: SDKMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -600,7 +597,6 @@ export default function Dashboard() {
 
             fetchConversations();
         } catch (error) {
-            console.error('Error getting AI response:', error);
             const errorMsg: SDKMessage = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -636,7 +632,6 @@ export default function Dashboard() {
                 setMessages([]);
             }
         } catch (error) {
-            console.error('Error deleting conversation:', error);
         } finally {
             setDeleteModalOpen(false);
             setConversationToDelete(null);
@@ -694,7 +689,7 @@ export default function Dashboard() {
                 onDeleteConversation={openDeleteModal}
                 onLogout={handleLogout}
                 onSummarize={() => router.push('/dashboard/summarize')}
-                onCompare={() => router.push('/dashboard/compare')} // Mocked compare view or navigation
+                onCompare={() => router.push('/dashboard/compare')}
             />
 
             <motion.main

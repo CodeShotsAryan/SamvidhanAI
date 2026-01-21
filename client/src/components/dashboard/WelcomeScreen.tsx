@@ -1,6 +1,7 @@
 import React from 'react';
 import { Gavel, Book, Building2, Globe, Briefcase, FileText, LayoutGrid } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 
 const LEGAL_DOMAINS = [
@@ -31,6 +32,7 @@ export default function WelcomeScreen({
     onDomainSelect,
     onSuggestionClick,
 }: WelcomeScreenProps) {
+    const router = useRouter();
     const suggestions = [
         'Compare IPC 420 vs BNS Section 318',
         'Summarize recent Supreme Court privacy judgments',
@@ -103,15 +105,15 @@ export default function WelcomeScreen({
                 </div>
                 <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
                     <button
-                        className="flex flex-col items-center gap-2 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-zinc-100 transition-all"
-                        onClick={() => window.location.href = '/dashboard/summarize'}
+                        className="flex flex-col items-center gap-2 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer"
+                        onClick={() => router.push('/dashboard/summarize')}
                     >
                         <FileText className="w-6 h-6 text-blue-500" />
                         <span className="text-xs font-bold text-zinc-700">Summarize</span>
                     </button>
                     <button
-                        className="flex flex-col items-center gap-2 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-zinc-100 transition-all"
-                        onClick={() => window.location.href = '/dashboard/compare'}
+                        className="flex flex-col items-center gap-2 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:bg-zinc-100 transition-all cursor-pointer"
+                        onClick={() => router.push('/dashboard/compare')}
                     >
                         <LayoutGrid className="w-6 h-6 text-green-500" />
                         <span className="text-xs font-bold text-zinc-700">Compare</span>
